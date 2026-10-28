@@ -45,5 +45,5 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test:node
       - run: bun run build
-      - name: Import the built package
-        run: node -e "import('./dist/index.js')"
+      - name: Import and exercise the built package
+        run: node scripts/check-import.mjs
