@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bun:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      # `bun add` rewrites a peer-only dependency to an exact version, which locks out every other Effect release.
+      - name: Check the effect peer is a range
+        run: node -e "const v = require('./package.json').peerDependencies.effect; if (!v.startsWith('^')) { console.error('peerDependencies.effect must be a ^ range, got ' + v); process.exit(1) }"
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+
+  node:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    strategy:
+      matrix:
+        node: [22, 24, 26]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+      - run: bun install --frozen-lockfile
+      - run: bun run test:node
+      - run: bun run build
+      - name: Import the built package
+        run: node -e "import('./dist/index.js').then((m) => { if (typeof Object.keys(m).length === 0) process.exit(1) })"

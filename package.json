@@ -1,0 +1,59 @@
+{
+  "name": "@printhive/bambu",
+  "version": "0.0.0",
+  "description": "Type-first Bambu Lab printer client for Effect, with an emulator, on Bun and Node.js",
+  "license": "MIT",
+  "author": "PrintHive",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrintHive/bambu.git"
+  },
+  "homepage": "https://github.com/PrintHive/bambu#readme",
+  "bugs": {
+    "url": "https://github.com/PrintHive/bambu/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "bun@1.4.0",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --deny-warnings",
+    "test": "bun test --pass-with-no-tests",
+    "test:node": "vitest run --passWithNoTests",
+    "check": "bun run lint && bun run typecheck && bun run test",
+    "prepublishOnly": "bun run check && bun run build"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.2"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.90.0",
+    "@types/node": "^26",
+    "effect": "4.0.2",
+    "oxlint": "1.90.0",
+    "typescript": "^7",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,17 @@
+language: en-US
+reviews:
+  profile: chill
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!bun.lock"
+    - "!tools/oxlint/anti-slop/**"
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        This repository is public. Flag any real credential, printer serial number, access code, hostname, or private IP committed in code, tests, fixtures, or docs.
+        Clean-room rule: data and code must come from our own captures or permissively licensed sources (MIT, Apache, BSD, or documented facts). Flag anything copied or derived from AGPL or GPL projects such as BambuStudio or OrcaSlicer.
+    - path: "test/**"
+      instructions: |
+        Tests call the public API and never mock modules. Each test should fail if the behavior it names breaks.
