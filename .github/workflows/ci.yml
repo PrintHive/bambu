@@ -46,4 +46,4 @@ jobs:
       - run: bun run test:node
       - run: bun run build
       - name: Import the built package
-        run: node -e "import('./dist/index.js').then((m) => { if (typeof Object.keys(m).length === 0) process.exit(1) })"
+        run: node -e "import('./dist/index.js')"
