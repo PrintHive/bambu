@@ -7,10 +7,9 @@ description: Check report folding when changing src/wire/merge.ts, module identi
 
 ## Status
 
-This skill has two production findings. The strict dangling-path property stays
-red until the owner fixes them. `bun test` and `bun run test:node` smoke runs,
-`bun run check`, and CI are red on purpose until then. No production fix is
-included. Validation against an uncommitted scratch baseline is recorded below.
+The real production baseline includes both malformed-body timestamp fixes from
+commit `747768d94c106276b5f3cf016c496657136119f2` in PR #3. All four properties pass,
+and all eight mutants are caught. PR #2 is stacked on PR #3 and merges after it.
 
 ## Property and harm
 
@@ -21,10 +20,10 @@ observedAt path resolves to retained raw evidence.
 A wrong timestamp can attribute old printer evidence to a new report or leave
 projection reading the wrong source time.
 
-Object category roots are structural. `src/wire/merge.ts:107` assigns `next`
-without stamping the category; lines 31-35 stamp non-object category bodies.
-The `print.ams` object branch assigns the merged container at line 57 and
-stamps only reported children at lines 59-64. The timestamp oracle excludes
+Object category roots are structural. The category object branch assigns `next`
+without stamping the category; the non-object branch stamps the entire body.
+The `print.ams` object branch assigns the merged container and stamps only
+reported children. The timestamp oracle excludes
 these structural containers, while requiring timestamps for non-object bodies
 and all other descendants. A scalar or array reported at `print.ams` still
 requires its own timestamp. The dangling-path property has no such exemptions.
@@ -59,8 +58,7 @@ nonzero with `REFUSED`, applies no mutants, and credits no kills. On a green
 baseline it requires a counterexample for each break at the same 300-case bound.
 It restores exact original bytes on errors and catchable interrupts. Do not edit
 merge.ts concurrently with a mutation run. Uncatchable termination cannot run
-cleanup; inspect `git diff -- src/wire/merge.ts` afterward. The current unfixed
-checkout must refuse; the table below uses an explicitly patched scratch baseline.
+cleanup; inspect `git diff -- src/wire/merge.ts` afterward. The validation table below uses the real committed baseline.
 
 ## Bounds and assumptions
 
@@ -88,34 +86,36 @@ No arbitrary initial Evidence, repeated/non-finite times, deep recursion,
 performance bound, or exhaustive input coverage is claimed. No printer captures,
 serial-shaped strings, or real IP addresses are generated.
 
-## Findings
+## Fixed findings
+
+Both findings were fixed in commit `747768d94c106276b5f3cf016c496657136119f2` in PR #3.
 
 ### Category array replaced by an object retains deleted paths
 
 1. Call `merge(empty, { print: [[]] }, 1)`.
 2. Call `merge(previous, { print: { ams: { ams_exist_bits: "0", ams: [] } } }, 2)`.
-3. At merge.ts:39, `oldBody` is not an object, so `next` starts as `{}`.
+3. Before the fix, `oldBody` is not an object, so `next` starts as `{}`.
    The old category times are never forgotten. `observedAt` still has
    `print.0` and `print` at time 1, although `raw.print` has no index 0.
 
 Harm: observedAt retains a source time for a value that no longer exists.
 
 One-line fix before writing keys: `if (!isObject(oldBody)) forget(category, observedAt)`.
-The strict property stays red until this owner-owned fix lands.
+The fix now clears these times before writing keys.
 
 ### AMS array replaced by an object retains deleted paths
 
 1. Call `merge(empty, { print: { ams: [0] } }, 1)`.
 2. Call `merge(previous, { print: { ams: {} } }, 2)`.
-3. At merge.ts:49, `old` is not an object, so `base` starts as `{}`.
+3. Before the fix, `old` is not an object, so `base` starts as `{}`.
    With no reset or incoming children, nothing forgets `print.ams.0` at time 1,
    although `raw.print.ams` has no index 0.
 
 Harm: observedAt retains an AMS source time for a value that no longer exists.
 
 One-line fix inside the object AMS branch: `if (!isObject(old)) forget(path, observedAt)`.
-The strict property stays red until this owner-owned fix lands too. The first
-scratch fix alone still fails at case 179 of 300 on this second finding.
+The fix now clears these times before merging children. Removing this fix is
+caught by its dedicated mutant.
 
 ## Read a failure
 
@@ -137,15 +137,15 @@ and assertions. Add report forms and realistic mutants for new behavior. Run
 check, deep, mutants and both package suites. Follow this skill cold: establish
 a green baseline, scratch-break merge.ts, confirm check prints a readable new
 counterexample, restore original bytes, and confirm check returns to baseline.
-If production has findings, use only an explicitly authorized scratch fix for
-sensitivity checks and restore production afterward. Never credit baseline
-failures as mutant kills. Use /maintain-formal-verification-skill when covered
+Never credit baseline failures as mutant kills. Use /maintain-formal-verification-skill when covered
 code changed without rechecking this verification.
 
 ## Coverage record
 
-Sync commit: `8fea2c254b9c0f738fec0401d1b766f08435487b` (bambu#1 squash).
-Line citations above refer to this unchanged source.
+SYNC_COMMIT: `747768d94c106276b5f3cf016c496657136119f2` (PR #3 fix).
+If PR #3 is squashed, its squash commit on main becomes the sync point. Find it
+with `git log origin/main --grep='stale times' --format=%H -1` or look up PR #3,
+then update SYNC_COMMIT here and in the runner after checking the squash diff.
 
 - src/wire/merge.ts: merge, stamp, forget, sourceAtPath, atPath.
 - src/wire/report.ts: isObject boundary semantics, confirmed from source.
@@ -161,29 +161,28 @@ not imply that the recorded source passes the properties.
 
 ## Validation record
 
-Measured against both one-line fixes above applied only in the working tree,
-never committed: `check` passed in 0.81 seconds and `deep` in 38.57 seconds.
-Each ran four properties at seed 73129, at 300 and 20000 cases per property.
-Mutants used that same patched baseline, whose preflight check also passed.
+Measured on the real committed fix baseline, with four properties at seed 73129:
+`check` passed at 300 cases per property in 0.32 seconds; `deep` passed at 20000
+cases per property in 6.62 seconds. Mutants used that same baseline and bound,
+with a passing 0.36-second preflight check.
 
 | Break | Result at 300 cases | Elapsed |
 | --- | --- | --- |
-| Omit module subtree cleanup | Caught | 1.47 s |
-| Match modules by index | Caught | 2.18 s |
-| Merge module fields | Caught | 2.06 s |
-| Skip retained-time reindex | Caught | 1.90 s |
-| Keep AMS units on reset | Caught | 2.41 s |
-| Store envelope keys | Caught | 1.31 s |
+| Omit category shape cleanup | Caught | 0.21 s |
+| Omit AMS shape cleanup | Caught | 0.40 s |
+| Omit module subtree cleanup | Caught | 0.51 s |
+| Match modules by index | Caught | 0.32 s |
+| Merge module fields | Caught | 0.28 s |
+| Skip retained-time reindex | Caught | 0.35 s |
+| Keep AMS units on reset | Caught | 0.41 s |
+| Store envelope keys | Caught | 0.42 s |
 
-The cold run restored production first, reapplied only both scratch fixes,
-confirmed check green, then disabled envelope exclusion with `if (false) continue`.
-Check failed on a new raw-evidence counterexample with one report:
+Cold scratch-break run on the real baseline: check passed in 0.32 seconds.
+Disabling envelope exclusion with `if (false) continue` failed in 0.27 seconds,
+with the one-report raw-evidence counterexample
 `{ info: { module: [], command: false, sequence_id: 0 } }`.
-Restoring envelope exclusion returned check to green. Restoring the original
-source returned check to the known dangling-path finding. `git diff --exit-code
-src/` was clean. An unfixed `mutants` run refused before applying mutations.
+Restoring exact original bytes returned check to green in 0.44 seconds.
+`git diff --exit-code -- src/` was clean afterward.
 
-Lint and typechecking pass. Bun and Node smoke suites each report 38 passing
-tests and one failing strict dangling-path property on unchanged production.
-The skill is sensitivity-validated against the scratch fixes, not a claim that
-production satisfies its invariants.
+`bun run check` passes lint, typechecking and all 41 Bun tests.
+`bun run test:node` passes all 41 Node tests.
