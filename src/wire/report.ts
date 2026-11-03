@@ -6,14 +6,14 @@ export const Category = Schema.StructWithRest(Schema.Struct({
   sequence_id: Schema.optionalKey(Schema.Json)
 }), [Schema.Record(Schema.String, Schema.Json)])
 
-export const Envelope = Schema.StructWithRest(Schema.Struct({
-  print: Schema.optionalKey(Category),
-  info: Schema.optionalKey(Category),
-  system: Schema.optionalKey(Category),
-  pushing: Schema.optionalKey(Category),
-  camera: Schema.optionalKey(Category),
-  xcam: Schema.optionalKey(Category)
-}), [Schema.Record(Schema.String, Schema.Json)])
+export const Envelope = Schema.JsonObject
 
-export const decodeReport = Schema.decodeUnknownSync(Envelope)
 export const isObject = (value: Schema.Json | undefined): value is Schema.JsonObject => value !== undefined && Schema.is(Schema.JsonObject)(value)
+
+const decodeEnvelope = Schema.decodeUnknownSync(Envelope)
+const decodeCategory = Schema.decodeUnknownSync(Category)
+
+// Validate category objects independently; retain malformed bodies as evidence.
+export const decodeReport = (report: Schema.Json): Schema.JsonObject => Object.fromEntries(
+  Object.entries(decodeEnvelope(report)).map(([category, body]) => [category, isObject(body) ? decodeCategory(body) : body])
+)

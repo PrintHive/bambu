@@ -45,7 +45,10 @@ const progress = Reading.match(state.progress.percent, {
 ```
 
 Every scalar is a `Reading`. Missing fields remain Unknown; a malformed leaf
-becomes Invalid without discarding valid siblings. Unsupported readings cite
+becomes Invalid without discarding valid siblings. A non-object category body
+invalidates its claimed readings with the raw body and report time. Categories
+with no field-table claims appear in `unclaimed`. Non-object reports and
+non-finite `now` values are caller errors and throw. Unsupported readings cite
 an affirmative hardware fact from `@printhive/bambu-models`. Missing model facts
 remain unknown. AMS removal explicitly makes its units Absent. Missing tray
 colors never acquire a default.

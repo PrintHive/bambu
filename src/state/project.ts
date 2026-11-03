@@ -1,6 +1,6 @@
 import { Predicate, Result, Schema } from "effect"
 import type { ModelResolution } from "../models/resolve.ts"
-import { atPath } from "../wire/merge.ts"
+import { atPath, sourceAtPath } from "../wire/merge.ts"
 import type { Evidence } from "../wire/merge.ts"
 import { isObject } from "../wire/report.ts"
 import type { Collection, FieldGroup, Projection } from "./fields.ts"
@@ -50,21 +50,19 @@ export const project = <T extends FieldGroup>(group: T, context: Context): Proje
   const out: { -readonly [K in keyof Cells]: Cells[K] } = {}
 
   for (const [key, node] of Object.entries(group)) {
-    if (node.kind === "collection") {
-      out[key] = projectCollection(node, context)
-      continue
-    }
-
     const path = `${context.prefix}${node.path}`
-    const source = node.unsupported(context.model)
-    const raw = atPath(context.evidence.raw, path)
+    const source = node.kind === "field" ? node.unsupported(context.model) : undefined
+    const wire = sourceAtPath(context.evidence.raw, path)
 
     if (source !== undefined) out[key] = Reading.Unsupported({ source })
-    else if (raw === undefined) out[key] = Reading.Unknown()
+    else if (wire !== undefined && wire.path !== path) {
+      out[key] = Reading.Invalid({ raw: wire.raw, issue: `Expected an object at ${wire.path}`, observedAt: observationTime(context.evidence, wire.path) })
+    } else if (node.kind === "collection") out[key] = projectCollection(node, context)
+    else if (wire === undefined) out[key] = Reading.Unknown()
     else {
-      out[key] = Result.match(Schema.decodeUnknownResult(node.schema)(raw), {
+      out[key] = Result.match(Schema.decodeUnknownResult(node.schema)(wire.raw), {
         onSuccess: (value) => Reading.Present({ value, observedAt: observationTime(context.evidence, path) }),
-        onFailure: (issue) => Reading.Invalid({ raw, issue: issue.message, observedAt: observationTime(context.evidence, path) })
+        onFailure: (issue) => Reading.Invalid({ raw: wire.raw, issue: issue.message, observedAt: observationTime(context.evidence, path) })
       })
     }
   }

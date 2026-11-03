@@ -2,7 +2,7 @@ import { Predicate, Schema } from "effect"
 import type { ModelResolution } from "../models/resolve.ts"
 import { resolveModel } from "../models/resolve.ts"
 import { Serial } from "../wire/ids.ts"
-import { atPath, merge } from "../wire/merge.ts"
+import { atPath, merge, sourceAtPath } from "../wire/merge.ts"
 import type { Evidence } from "../wire/merge.ts"
 import { decodeReport, isObject } from "../wire/report.ts"
 import { fieldRows, fieldTable } from "./fields.ts"
@@ -86,9 +86,13 @@ export const reduce = (previous: PrinterState, report: Schema.JsonObject, now: n
   const delta: { -readonly [K in keyof Delta]?: Delta[K] } = {}
 
   const section = <K extends Section>(key: K): Sections[K] => {
-    const touched = model !== previous.model || Object.values(fieldTable[key]).some((node) =>
-      atPath(previous[evidenceKey].raw, node.path) !== atPath(evidence.raw, node.path) ||
-      previous[evidenceKey].observedAt.get(node.path) !== evidence.observedAt.get(node.path))
+    const touched = model !== previous.model || Object.values(fieldTable[key]).some((node) => {
+      const before = sourceAtPath(previous[evidenceKey].raw, node.path)
+      const after = sourceAtPath(evidence.raw, node.path)
+
+      return before?.path !== after?.path || before?.raw !== after?.raw ||
+        previous[evidenceKey].observedAt.get(before?.path ?? node.path) !== evidence.observedAt.get(after?.path ?? node.path)
+    })
 
     if (!touched) return previous[key]
 

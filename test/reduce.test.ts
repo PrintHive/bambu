@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { Predicate, Schema } from "effect"
 import { initialState, reduce, Reading } from "../src/index.ts"
+import { merge } from "../src/wire/merge.ts"
 import { fieldRows } from "../src/state/fields.ts"
 import { AccessCode, SequenceId, Serial } from "../src/wire/ids.ts"
 import { Category, decodeReport } from "../src/wire/report.ts"
@@ -275,4 +276,62 @@ test("empty reports have no unclaimed paths and known collection shapes fail loc
   assert.equal(result.state.faults.hms._tag, "Invalid")
   assert.equal(present(result.state.progress.percent).value, 10)
   assert.deepEqual(reduce(start(), { future: { command: "new" } }, 3).unclaimed, ["future.command"])
+})
+
+
+test("malformed categories cannot discard valid sibling categories", () => {
+  const result = reduce(start(), { print: { nozzle_temper: 220 }, system: 3 }, 100)
+  assert.deepEqual(result.state.temperature.nozzle, Reading.Present({ value: 220, observedAt: 100 }))
+  assert.deepEqual(result.unclaimed, ["system"])
+})
+
+test("null print invalidates claimed fields at the report time and recovers per path", () => {
+  const first = reduce(start(), { print: { nozzle_temper: 210, ams: { ams: [{ id: "0" }] } } }, 50).state
+  const result = reduce(first, { print: null }, 100)
+
+  for (const section of ["execution", "progress", "temperature", "fans", "network", "job", "faults", "ams", "externalSpool", "lighting"] as const) {
+    for (const reading of Object.values(result.state[section])) {
+      assert.deepEqual(reading, Reading.Invalid({ raw: null, issue: "Expected an object at print", observedAt: 100 }))
+    }
+  }
+
+  assert.deepEqual(result.unclaimed, [])
+  assert.deepEqual(reduce(start(), { print: null }, 100).state.temperature.nozzle, result.state.temperature.nozzle)
+  const repeated = reduce(result.state, { print: null }, 200)
+  assert.deepEqual(repeated.delta, {})
+  assert.deepEqual(repeated.state.temperature.nozzle, Reading.Invalid({ raw: null, issue: "Expected an object at print", observedAt: 200 }))
+  const unrelated = reduce(repeated.state, { info: { module: [{ name: "ota" }] } }, 300).state
+  assert.equal(unrelated.temperature, repeated.state.temperature)
+  const recovered = reduce(unrelated, { print: { nozzle_temper: 230 } }, 400).state
+  assert.deepEqual(recovered.temperature.nozzle, Reading.Present({ value: 230, observedAt: 400 }))
+  assert.deepEqual(recovered.ams.units, Reading.Unknown())
+  assert.deepEqual(first.temperature.nozzle, Reading.Present({ value: 210, observedAt: 50 }))
+})
+
+test("malformed category replacement forgets descendant observation times", () => {
+  const first = merge({ raw: {}, observedAt: new Map() }, { print: { ams: { ams: [{ id: "0" }] } } }, 50)
+  const next = merge(first, { print: null }, 100)
+  assert.deepEqual(next.raw, { print: null })
+  assert.deepEqual([...next.observedAt], [["print", 100]])
+})
+
+test("non-object reports and non-finite times remain caller errors", () => {
+  for (const report of [null, 3, "bad", []]) {
+    assert.throws(() => decodeReport(report))
+    // @ts-expect-error Deliberately bypass the object-only API to verify caller validation.
+    assert.throws(() => reduce(start(), report, 100))
+  }
+
+  for (const now of [NaN, Infinity, -Infinity]) assert.throws(() => reduce(start(), { print: null }, now))
+})
+
+
+test("all non-object category bodies invalidate claimed fields", () => {
+  for (const body of [3, true, "bad", [], [{}]]) {
+    const result = reduce(start(), { print: body, info: body }, 100)
+    const invalid = Reading.Invalid({ raw: body, issue: "Expected an object at print", observedAt: 100 })
+    assert.deepEqual(result.state.temperature.nozzle, invalid)
+    assert.deepEqual(result.state.faults.hms, invalid)
+    assert.deepEqual(result.state.hardware.modules, Reading.Invalid({ raw: body, issue: "Expected an object at info", observedAt: 100 }))
+  }
 })

@@ -87,13 +87,26 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
   return { raw, observedAt }
 }
 
-export const atPath = (raw: Schema.Json, path: string): Schema.Json | undefined => {
+// A non-container ancestor is evidence of a malformed path, not a missing leaf.
+export const sourceAtPath = (raw: Schema.Json, path: string): { readonly path: string; readonly raw: Schema.Json } | undefined => {
   let value: Schema.Json | undefined = raw
+  const parts: string[] = []
 
   for (const key of path.split(".")) {
-    if (Array.isArray(value)) value = value[Number(key)]
-    else value = isObject(value) ? value[key] : undefined
+    if (value === undefined) return undefined
+
+    if (Array.isArray(value) && /^(0|[1-9][0-9]*)$/.test(key)) value = value[Number(key)]
+    else if (isObject(value)) value = value[key]
+    else return { path: parts.join("."), raw: value }
+
+    parts.push(key)
   }
 
-  return value
+  return value === undefined ? undefined : { path, raw: value }
+}
+
+export const atPath = (raw: Schema.Json, path: string): Schema.Json | undefined => {
+  const source = sourceAtPath(raw, path)
+
+  return source?.path === path ? source.raw : undefined
 }
