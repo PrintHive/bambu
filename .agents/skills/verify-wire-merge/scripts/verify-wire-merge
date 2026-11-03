@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Run the real merge property, or test its sensitivity with isolated mutants."""
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+SYNC_COMMIT = "8fea2c254b9c0f738fec0401d1b766f08435487b"
+PROPERTY = "test/wire-merge.property.test.ts"
+SOURCE = ROOT / "src/wire/merge.ts"
+COVERED = ["src/wire/merge.ts", "src/wire/report.ts", "src/state/project.ts", "src/state/reduce.ts", PROPERTY]
+
+
+def run(count):
+    env = dict(os.environ, WIRE_MERGE_RUNS=str(count))
+    env.setdefault("WIRE_MERGE_SEED", "73129")
+    started = time.monotonic()
+    result = subprocess.run(["bun", "test", PROPERTY, "--timeout", "600000"], cwd=ROOT, env=env, text=True, capture_output=True)
+    print(result.stdout + result.stderr)
+    print(f"Elapsed: {time.monotonic() - started:.2f}s")
+    return result
+
+
+MUTANTS = [
+    ("omit module subtree cleanup", "const modules: Schema.Json[] = []\n        forget(path, observedAt)", "const modules: Schema.Json[] = []"),
+    ("match modules by index", "modules.findIndex((candidate) => isObject(candidate) && candidate.name === item.name)", "0"),
+    ("merge module fields", "modules[target] = item", "modules[target] = isObject(modules[target]) && isObject(item) ? { ...modules[target], ...item } : item"),
+    ("skip retained-time reindex", "observedAt.set(`${to}${key.slice(from.length)}`, time)", "observedAt.set(key, time)"),
+    ("keep AMS units on reset", "delete merged.ams", "void merged.ams"),
+    ("store envelope keys", "if (envelopeKeys.has(key)) continue", "if (false) continue"),
+]
+
+
+def interrupted(signum, frame):
+    raise KeyboardInterrupt
+
+
+def mutants():
+    # A pre-existing failure is never evidence that a mutation was detected.
+    if run(300).returncode:
+        print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
+        return 1
+    original = SOURCE.read_bytes()
+    failures = 0
+    signal.signal(signal.SIGTERM, interrupted)
+    try:
+        for label, before, after in MUTANTS:
+            text = original.decode()
+            if text.count(before) != 1:
+                print(f"ANCHOR MISSING: {label}")
+                failures += 1
+                continue
+            try:
+                SOURCE.write_text(text.replace(before, after))
+                result = run(300)
+                caught = result.returncode != 0 and "Counterexample:" in result.stdout + result.stderr
+                print(f"{'caught' if caught else 'MISSED / BROKEN RUN'}: {label}")
+                failures += not caught
+            finally:
+                SOURCE.write_bytes(original)
+    finally:
+        SOURCE.write_bytes(original)
+    return int(bool(failures))
+
+
+def main():
+    command = sys.argv[1] if len(sys.argv) > 1 else "check"
+    if command == "drift":
+        subprocess.run(["git", "merge-base", "--is-ancestor", SYNC_COMMIT, "HEAD"], cwd=ROOT, check=True)
+        return subprocess.run(["git", "log", "--oneline", f"{SYNC_COMMIT}..HEAD", "--", *COVERED], cwd=ROOT).returncode
+    version = json.loads((ROOT / "node_modules/fast-check/package.json").read_text())["version"]
+    if version != "4.10.2":
+        raise SystemExit(f"Expected fast-check 4.10.2, got {version}; run bun install --frozen-lockfile")
+    if command == "check":
+        return run(300).returncode
+    if command == "deep":
+        return run(20000).returncode
+    if command == "mutants":
+        return mutants()
+    raise SystemExit("Usage: verify-wire-merge [check|deep|mutants|drift]")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
