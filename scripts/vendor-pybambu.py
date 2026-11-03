@@ -25,10 +25,13 @@ def fetch(path):
 
 
 def scrub_ipv4(match):
-    # Bambu firmware versions are zero-padded (01.09.00.01); IPv4 octets never are.
-    parts = match.group(0).split(".")
-    if any(len(part) > 1 and part.startswith("0") for part in parts):
-        return match.group(0)
+    # Keep only a strict NN.NN.NN.NN firmware version with a zero-padded part,
+    # such as 01.09.00.01. Anything else, including zero-padded addresses like
+    # 192.168.001.010, is treated as an address and scrubbed.
+    value = match.group(0)
+    parts = value.split(".")
+    if re.fullmatch(r"\d{2}(\.\d{2}){3}", value) and any(part.startswith("0") for part in parts):
+        return value
     return "192.0.2.10"
 
 

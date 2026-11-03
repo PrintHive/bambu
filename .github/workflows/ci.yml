@@ -28,6 +28,8 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
+      - name: Vendor script tests
+        run: python3 -B -m unittest discover -s test -p 'test_*.py'
 
   node:
     runs-on: blacksmith-2vcpu-ubuntu-2404

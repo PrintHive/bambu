@@ -33,6 +33,10 @@ class VendorTests(unittest.TestCase):
         self.assertEqual(vendor.scrub({"note": "needs 01.09.00.01 or later"}),
                          {"note": "needs 01.09.00.01 or later"})
         self.assertEqual(vendor.scrub({"note": "at 10.0.0.1"}), {"note": "at 192.0.2.10"})
+        # Only a strict NN.NN.NN.NN quad with a zero-padded part is a version.
+        for address in ("192.168.001.010", "010.000.000.005", "10.10.10.10"):
+            with self.subTest(address=address):
+                self.assertEqual(vendor.scrub({"note": f"at {address}"}), {"note": "at 192.0.2.10"})
 
     def test_fixtures_hold_the_ipv4_placeholder_only_in_network_fields(self):
         network = {"ip", "ip_address", "netmask", "gateway"}
