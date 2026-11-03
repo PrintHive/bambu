@@ -81,7 +81,9 @@ the immediate category level, not inside arbitrary nested data.
 
 No network, MQTT ordering, decoding schemas, field projection correctness,
 printer hardware, or emulator behavior is verified. Names are strings, not
-arbitrary JSON module identities. Keys contain no dots or prototype names.
+arbitrary JSON module identities. Keys contain no dots or prototype names, so a dotted category such as
+`"print.mc_percent"` that shares a path with a real reading is out of scope.
+The example test in `test/wire-merge.test.ts` covers that case through `reduce`.
 No arbitrary initial Evidence, repeated/non-finite times, deep recursion,
 performance bound, or exhaustive input coverage is claimed. No printer captures,
 serial-shaped strings, or real IP addresses are generated.
@@ -100,7 +102,9 @@ Both findings were fixed in commit `747768d94c106276b5f3cf016c496657136119f2` in
 
 Harm: observedAt retains a source time for a value that no longer exists.
 
-One-line fix before writing keys: `if (!isObject(oldBody)) forget(category, observedAt)`.
+Fix before writing keys: `if (oldBody !== undefined && !isObject(oldBody)) forget(category, observedAt)`.
+The `undefined` guard came from review: an absent category has nothing to forget,
+and forgetting a dotted category's path would drop a real reading's time.
 The fix now clears these times before writing keys.
 
 ### AMS array replaced by an object retains deleted paths
@@ -142,7 +146,7 @@ code changed without rechecking this verification.
 
 ## Coverage record
 
-SYNC_COMMIT: `747768d94c106276b5f3cf016c496657136119f2` (PR #3 fix).
+SYNC_COMMIT: `2d9581c08e6b9360ca2bf54ee43970c04fc04e92` (PR #3 head, with the dotted-category guard).
 If PR #3 is squashed, its squash commit on main becomes the sync point. Find it
 with `git log origin/main --grep='stale times' --format=%H -1` or look up PR #3,
 then update SYNC_COMMIT here and in the runner after checking the squash diff.
