@@ -1,0 +1,14 @@
+These JSON fixtures are adapted from greghesp/ha-bambulab (pybambu), MIT.
+Copyright (c) 2023 ha-bambulab contributors. The upstream license is included in LICENSE.
+
+Pinned commit: 0e027ff135a6d9265cb756d3e246747954c76722
+https://github.com/greghesp/ha-bambulab/tree/0e027ff135a6d9265cb756d3e246747954c76722/custom_components/bambu_lab/pybambu/mock_data
+
+Upstream files: MOCK-A1.json, MOCK-X1CMULTIAMS.json, MOCK-H2D.json.
+Device and module serials, network addresses, MAC addresses, credentials,
+RFID identifiers, and spool UUIDs have synthetic replacements. Other wire
+values and structure are retained. These are community mocks, not captures
+or evidence of hardware-verified behavior.
+
+Regenerate with python3 scripts/vendor-pybambu.py. Downloads are scrubbed
+in memory before any fixture is written.

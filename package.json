@@ -40,8 +40,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings",
-    "test": "bun test --pass-with-no-tests",
-    "test:node": "vitest run --passWithNoTests",
+    "test": "bun test",
+    "test:node": "vitest run",
     "check": "bun run lint && bun run typecheck && bun run test",
     "prepublishOnly": "bun run check && bun run build"
   },
@@ -55,5 +55,8 @@
     "oxlint": "1.90.0",
     "typescript": "^7",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@printhive/bambu-models": "^0.1.1"
   }
 }

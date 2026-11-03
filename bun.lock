@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "@printhive/bambu",
+      "dependencies": {
+        "@printhive/bambu-models": "^0.1.1",
+      },
       "devDependencies": {
         "@oxlint/plugins": "1.90.0",
         "@types/node": "^26",
@@ -65,6 +68,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.90.0", "", { "os": "win32", "cpu": "x64" }, "sha512-30JiaFEBUB9peEOcvVM8ggo88SoN/IdSr9DW505JdBji/R6dM66gKEiG65hw6qcaF2f4mO0cEJ+RwRZprmun9g=="],
 
     "@oxlint/plugins": ["@oxlint/plugins@1.90.0", "", {}, "sha512-FT0JJDNbj9oobVWHpAzFckHY/bx1ftPjulBx4UCMXqmDUGqVWOkbKe5bj4zdEL+D5Ud7y/RfioLwSvlHBMjI4w=="],
+
+    "@printhive/bambu-models": ["@printhive/bambu-models@0.1.1", "", {}, "sha512-cqVmSR0YxaHUr61L+e4VSJlfnyY6hQsSOr+4bhMT8c+mnNNdSxtdird2boFKb4fnmJu7TOKbMsMhMVywydHzdw=="],
 
     "@rolldown/binding-android-arm-eabi": ["@rolldown/binding-android-arm-eabi@1.2.15", "", { "os": "android", "cpu": "arm" }, "sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw=="],
 
