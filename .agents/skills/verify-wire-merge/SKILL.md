@@ -9,7 +9,7 @@ description: Check report folding when changing src/wire/merge.ts, module identi
 
 The real production baseline includes both malformed-body timestamp fixes from
 commit `747768d94c106276b5f3cf016c496657136119f2` in PR #3. All four properties pass,
-and all eight mutants are caught. PR #2 is stacked on PR #3 and merges after it.
+and all nine mutants are caught. PR #2 is stacked on PR #3 and merges after it.
 
 ## Property and harm
 
@@ -158,7 +158,9 @@ then update SYNC_COMMIT here and in the runner after checking the squash diff.
 - src/state/reduce.ts: merge callers, read for scope only.
 - test/wire-merge.property.test.ts: generators, independent fold and assertions.
 
-`drift` lists changes to these files since SYNC_COMMIT. Move the sync commit
+`drift` lists changes to these files since SYNC_COMMIT. It exits nonzero and
+lists the files when any covered file has uncommitted changes, so commit or
+revert them first. Move the sync commit
 forward here and in the runner only after confirming that the model still
 describes the new code. A sync record identifies reviewed source; it does
 not imply that the recorded source passes the properties.
@@ -166,8 +168,9 @@ not imply that the recorded source passes the properties.
 ## Validation record
 
 Measured on the real committed fix baseline, with four properties at seed 73129:
-`check` passed at 300 cases per property in 0.32 seconds; `deep` passed at 20000
-cases per property in 6.62 seconds. Mutants used that same baseline and bound,
+`check` passed at 300 cases per property in 0.19 seconds; `deep` passed at 20000
+cases per property in 4.11 seconds. The timestamp property also rejects any
+`observedAt` path the oracle does not time, so stamping a structural container fails. Mutants used that same baseline and bound,
 with a passing 0.36-second preflight check.
 
 | Break | Result at 300 cases | Elapsed |
@@ -179,6 +182,7 @@ with a passing 0.36-second preflight check.
 | Merge module fields | Caught | 0.28 s |
 | Skip retained-time reindex | Caught | 0.35 s |
 | Keep AMS units on reset | Caught | 0.41 s |
+| Stamp the structural AMS container | Caught | under 1 s |
 | Store envelope keys | Caught | 0.42 s |
 
 Cold scratch-break run on the real baseline: check passed in 0.32 seconds.

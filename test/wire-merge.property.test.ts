@@ -163,9 +163,14 @@ test("wire merge: every observedAt path resolves to retained raw evidence", () =
 
 test("wire merge: timed raw nodes have their last writer time", () => {
   fc.assert(fc.property(reports, (items) => sequence(items, (actual, expected) => {
-    for (const [path, time] of times(expected)) {
+    const required = times(expected)
+
+    for (const [path, time] of required) {
       assert.equal(actual.observedAt.get(path), time, `Missing or incorrect observedAt at ${path}`)
     }
+
+    // Structural containers carry no time, so an extra stamp is a regression.
+    for (const path of actual.observedAt.keys()) assert.ok(required.has(path), `Unexpected observedAt at ${path}`)
   })), options)
 })
 

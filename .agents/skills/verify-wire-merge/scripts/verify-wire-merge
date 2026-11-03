@@ -33,6 +33,7 @@ MUTANTS = [
     ("merge module fields", "modules[target] = item", "modules[target] = isObject(modules[target]) && isObject(item) ? { ...modules[target], ...item } : item"),
     ("skip retained-time reindex", "observedAt.set(`${to}${key.slice(from.length)}`, time)", "observedAt.set(key, time)"),
     ("keep AMS units on reset", "delete merged.ams", "void merged.ams"),
+    ("stamp the structural AMS container", "        next[key] = merged\n", "        next[key] = merged\n        observedAt.set(path, now)\n"),
     ("store envelope keys", "if (envelopeKeys.has(key)) continue", "if (false) continue"),
 ]
 
@@ -73,6 +74,11 @@ def main():
     command = sys.argv[1] if len(sys.argv) > 1 else "check"
     if command == "drift":
         subprocess.run(["git", "merge-base", "--is-ancestor", SYNC_COMMIT, "HEAD"], cwd=ROOT, check=True)
+        status = subprocess.run(["git", "status", "--short", "--", *COVERED], cwd=ROOT, text=True, capture_output=True, check=True)
+        if status.stdout:
+            print("Uncommitted changes in covered files; commit or revert them, then rerun drift:")
+            print(status.stdout, end="")
+            return 1
         return subprocess.run(["git", "log", "--oneline", f"{SYNC_COMMIT}..HEAD", "--", *COVERED], cwd=ROOT).returncode
     version = json.loads((ROOT / "node_modules/fast-check/package.json").read_text())["version"]
     if version != "4.10.2":
