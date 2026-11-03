@@ -56,6 +56,10 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
           stamp(item, `${path}.${child}`, now, observedAt)
         }
       } else if (category === "info" && key === "module" && Array.isArray(value)) {
+        // Each get_version entry describes one whole module, so a match by name
+        // replaces it, including fields the newer entry omits. Merging fields
+        // could pair a swapped AMS unit's old `sn` with the new unit's `sw_ver`.
+        // Modules missing from a reply are kept: a reply need not list them all.
         const modules = Array.isArray(old) ? [...old] : []
 
         for (const item of value) {
