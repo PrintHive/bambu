@@ -8,11 +8,20 @@ SHA = "0e027ff135a6d9265cb756d3e246747954c76722"
 ROOT = f"https://raw.githubusercontent.com/greghesp/ha-bambulab/{SHA}"
 DEST = Path(__file__).resolve().parents[1] / "test/fixtures/pybambu"
 MODELS = ("MOCK-A1", "MOCK-X1CMULTIAMS", "MOCK-H2D")
+MAX_DOWNLOAD_BYTES = 1024 * 1024
 VERSION_KEYS = {
     "sw_ver", "hw_ver", "ver", "loader_ver", "ota_ver", "version", "cali_version",
     "ahb_new_version_number", "ams_new_version_number", "ext_new_version_number",
     "ota_new_version_number", "new_version_state",
 }
+
+
+def fetch(path):
+    with urllib.request.urlopen(f"{ROOT}/{path}") as response:
+        data = response.read(MAX_DOWNLOAD_BYTES + 1)
+    if len(data) > MAX_DOWNLOAD_BYTES:
+        raise ValueError(f"Download exceeds {MAX_DOWNLOAD_BYTES} bytes: {path}")
+    return data
 
 
 def scrub(value, key=""):
@@ -45,8 +54,6 @@ if __name__ == "__main__":
     DEST.mkdir(parents=True, exist_ok=True)
     for model in MODELS:
         path = f"custom_components/bambu_lab/pybambu/mock_data/{model}.json"
-        with urllib.request.urlopen(f"{ROOT}/{path}") as response:
-            clean = scrub(json.load(response))
+        clean = scrub(json.loads(fetch(path)))
         (DEST / f"{model}.json").write_text(json.dumps(clean, indent=2) + "\n")
-    with urllib.request.urlopen(f"{ROOT}/LICENSE") as response:
-        (DEST / "LICENSE").write_bytes(response.read())
+    (DEST / "LICENSE").write_bytes(fetch("LICENSE"))
