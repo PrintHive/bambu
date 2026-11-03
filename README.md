@@ -60,6 +60,10 @@ modules. Each module reply replaces the previous nameless set. Retained named
 modules keep their observation times even when array indexes shift.
 Arrays of AMS units and trays replace their previous arrays.
 Fan values retain the reported numeric scale without a percentage conversion.
+HMS faults use JSON tuple keys `[attr,code]`, so clearing a fault does not change
+other faults' keys. If either identity field is missing or is not a string or
+number, the entry falls back to `#index`. Other collections use their single
+identity field as the key.
 
 Only touched sections are projected again. Present, Absent, and Invalid readings
 carry their own `observedAt`; unrelated reports cannot refresh it. AMS absence

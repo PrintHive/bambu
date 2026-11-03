@@ -249,7 +249,7 @@ test("field table projects temperatures, fans, jobs, raw HMS codes, lights, and 
   assert.equal(present(state.execution.nozzleDiameter).value, 0.4)
   assert.equal(present(state.execution.nozzleType).value, "stainless_steel")
   assert.equal(present(state.faults.printError).value, 0)
-  const hms = present(state.faults.hms).value.get("#0")
+  const hms = present(state.faults.hms).value.get("[56,1234]")
   assert.ok(hms)
   assert.equal(present(hms.code).value, 1234)
   assert.equal(present(hms.attr).value, 56)
@@ -391,4 +391,35 @@ test("module index shifts preserve retained times and forget removed paths", () 
   assert.ok(updated)
   assert.deepEqual(updated.softwareVersion, Reading.Unknown())
   assert.deepEqual(updated.hardwareVersion, Reading.Present({ value: "02", observedAt: 400 }))
+})
+
+
+test("HMS fault identity survives clearing an earlier fault", () => {
+  const first = reduce(start(), { print: { hms: [{ attr: 1, code: 10 }, { attr: 2, code: 20 }] } }, 100).state
+  const result = reduce(first, { print: { hms: [{ attr: 2, code: 20 }] } }, 200).state
+  const before = present(first.faults.hms).value
+  const after = present(result.faults.hms).value
+  assert.deepEqual([...before.keys()], ["[1,10]", "[2,20]"])
+  assert.deepEqual([...after.keys()], ["[2,20]"])
+  const prior = before.get("[2,20]")
+  const remaining = after.get("[2,20]")
+  assert.ok(prior && remaining)
+  assert.equal(present(remaining.attr).value, present(prior.attr).value)
+  assert.equal(present(remaining.code).value, present(prior.code).value)
+  assert.equal(present(remaining.attr).observedAt, 200)
+  assert.equal(present(remaining.code).observedAt, 200)
+})
+
+test("HMS identity uses both fields and missing identities fall back to index", () => {
+  const result = reduce(start(), { print: { hms: [
+    { attr: 0, code: 0 }, { attr: 1, code: 0 }, { attr: 0, code: 1 },
+    { attr: 2 }, { code: 3 }, {}, null
+  ] } }, 100)
+
+  const faults = present(result.state.faults.hms).value
+  assert.deepEqual([...faults.keys()], ["[0,0]", "[1,0]", "[0,1]", "#3", "#4", "#5", "#6"])
+  const missing = faults.get("#3")
+  assert.ok(missing)
+  assert.deepEqual(missing.code, Reading.Unknown())
+  assert.deepEqual(missing.attr, Reading.Present({ value: 2, observedAt: 100 }))
 })

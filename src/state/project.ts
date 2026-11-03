@@ -38,8 +38,11 @@ const projectCollection = (node: Collection, context: Context): Reading.Reading<
   const value = new Map<string, Cells>()
 
   raw.forEach((item, index) => {
-    const identity = isObject(item) ? item[node.identity] : undefined
-    const key = Predicate.isString(identity) || Predicate.isNumber(identity) ? String(identity) : `#${index}`
+    const identity = node.identity.map((field) => isObject(item) ? item[field] : undefined)
+
+    const key = identity.every((value) => Predicate.isString(value) || Predicate.isNumber(value))
+      ? (identity.length === 1 ? String(identity[0]) : JSON.stringify(identity)) : `#${index}`
+
     value.set(key, project(node.fields, { ...context, prefix: `${path}.${index}.` }))
   })
 

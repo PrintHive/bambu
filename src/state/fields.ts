@@ -12,7 +12,7 @@ export interface Field<A = Schema.Json> {
 export interface Collection<T extends FieldGroup = FieldGroup> {
   readonly kind: "collection"
   readonly path: string
-  readonly identity: string
+  readonly identity: readonly [string, ...string[]]
   readonly fields: T
 }
 
@@ -27,7 +27,7 @@ export type Projection<T extends FieldGroup> = {
 
 const supported = () => undefined
 const field = <A extends Schema.Json>(path: string, schema: Schema.Codec<A, unknown>, unsupported: Field<A>["unsupported"] = supported): Field<A> => ({ kind: "field", path, schema, unsupported })
-const collection = <const T extends FieldGroup>(path: string, identity: string, fields: T): Collection<T> => ({ kind: "collection", path, identity, fields })
+const collection = <const T extends FieldGroup>(path: string, identity: Collection["identity"], fields: T): Collection<T> => ({ kind: "collection", path, identity, fields })
 
 const chamberSensor: Field["unsupported"] = (model) => {
   const fact = model?.facts.chamberSensor
@@ -87,7 +87,7 @@ export const fieldTable = {
   },
   faults: {
     printError: field("print.print_error", Schema.Finite),
-    hms: collection("print.hms", "", {
+    hms: collection("print.hms", ["attr", "code"], {
       code: field("code", Schema.Finite),
       attr: field("attr", Schema.Finite)
     })
@@ -97,12 +97,12 @@ export const fieldTable = {
     trayExistBits: field("print.ams.tray_exist_bits", Schema.String),
     trayNow: field("print.ams.tray_now", Schema.String),
     trayTarget: field("print.ams.tray_tar", Schema.String),
-    units: collection("print.ams.ams", "id", {
+    units: collection("print.ams.ams", ["id"], {
       id: field("id", Schema.String),
       humidity: field("humidity", Numeric),
       temperature: field("temp", Numeric),
       trayExistBits: field("tray_exist_bits", Schema.String),
-      trays: collection("tray", "id", trayFields)
+      trays: collection("tray", ["id"], trayFields)
     })
   },
   externalSpool: {
@@ -113,13 +113,13 @@ export const fieldTable = {
     k: field("print.vt_tray.k", Numeric)
   },
   lighting: {
-    lights: collection("print.lights_report", "node", {
+    lights: collection("print.lights_report", ["node"], {
       node: field("node", Schema.String),
       mode: field("mode", Schema.String)
     })
   },
   hardware: {
-    modules: collection("info.module", "name", {
+    modules: collection("info.module", ["name"], {
       name: field("name", Schema.String),
       serial: field("sn", Schema.String),
       softwareVersion: field("sw_ver", Schema.String),
