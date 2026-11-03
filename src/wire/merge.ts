@@ -47,11 +47,18 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
       if (category === "print" && key === "ams" && isObject(value)) {
         const reset = value.ams_exist_bits === "0"
         const base = !reset && isObject(old) ? old : {}
-        next[key] = { ...base, ...value }
+        const merged = { ...base, ...value }
 
-        if (reset) forget(path, observedAt)
+        if (reset) {
+          delete merged.ams
+          forget(path, observedAt)
+        }
+
+        next[key] = merged
 
         for (const [child, item] of Object.entries(value)) {
+          if (reset && child === "ams") continue
+
           forget(`${path}.${child}`, observedAt)
           stamp(item, `${path}.${child}`, now, observedAt)
         }

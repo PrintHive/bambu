@@ -430,3 +430,16 @@ test("model resolution falls back to info when print printer_type is not a strin
   assert.equal(result.state.model?.id, "X1C")
   assert.equal(result.state.model?.via, "printer_type")
 })
+
+
+for (const units of [[], [{ id: "0" }]]) {
+  test(`AMS reset ignores incoming units ${JSON.stringify(units)}`, () => {
+    const first = reduce(start(), { print: { ams: { ams_exist_bits: "1", ams: [{ id: "1" }] } } }, 50).state
+    const result = reduce(first, { print: { ams: { ams_exist_bits: "0", ams: units } } }, 100)
+    assert.deepEqual(result.state.ams.units, Reading.Absent({ observedAt: 100 }))
+    const unrelated = reduce(result.state, { print: { wifi_signal: "-55dBm" } }, 200)
+    assert.deepEqual(unrelated.state.ams.units, Reading.Absent({ observedAt: 100 }))
+    const attached = reduce(result.state, { print: { ams: { ams_exist_bits: "1" } } }, 300)
+    assert.deepEqual(attached.state.ams.units, Reading.Unknown())
+  })
+}
