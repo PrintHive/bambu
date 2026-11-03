@@ -24,6 +24,14 @@ def fetch(path):
     return data
 
 
+def scrub_ipv4(match):
+    # Bambu firmware versions are zero-padded (01.09.00.01); IPv4 octets never are.
+    parts = match.group(0).split(".")
+    if any(len(part) > 1 and part.startswith("0") for part in parts):
+        return match.group(0)
+    return "192.0.2.10"
+
+
 def scrub(value, key=""):
     lower = key.lower()
     if lower in {"sn", "serial", "serial_number", "dev_id", "device_id"}:
@@ -44,7 +52,7 @@ def scrub(value, key=""):
         return [scrub(v) for v in value]
     if isinstance(value, str):
         if lower not in VERSION_KEYS:
-            value = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "192.0.2.10", value)
+            value = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", scrub_ipv4, value)
         value = re.sub(r"\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b", "02:00:00:00:00:01", value)
         value = re.sub(r"(?<![A-Z0-9])[A-Z0-9]{15}(?![A-Z0-9])", "000FAKE00000001", value)
     return value

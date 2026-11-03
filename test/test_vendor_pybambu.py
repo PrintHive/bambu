@@ -27,6 +27,28 @@ class VendorTests(unittest.TestCase):
         self.assertEqual(vendor.scrub({"sw_ver": "aa:bb:cc:dd:ee:ff"}),
                          {"sw_ver": "02:00:00:00:00:01"})
 
+    def test_scrub_preserves_zero_padded_versions_under_any_key(self):
+        # Bambu firmware versions are zero-padded; real IPv4 octets never are.
+        self.assertEqual(vendor.scrub({"lower_limit": "00.00.00.00"}), {"lower_limit": "00.00.00.00"})
+        self.assertEqual(vendor.scrub({"note": "needs 01.09.00.01 or later"}),
+                         {"note": "needs 01.09.00.01 or later"})
+        self.assertEqual(vendor.scrub({"note": "at 10.0.0.1"}), {"note": "at 192.0.2.10"})
+
+    def test_fixtures_hold_the_ipv4_placeholder_only_in_network_fields(self):
+        network = {"ip", "ip_address", "netmask", "gateway"}
+
+        def strays(value, key=""):
+            if isinstance(value, dict):
+                return [hit for k, v in value.items() for hit in strays(v, k)]
+            if isinstance(value, list):
+                return [hit for v in value for hit in strays(v, key)]
+            return [key] if value == "192.0.2.10" and key.lower() not in network else []
+
+        for model in vendor.MODELS:
+            with self.subTest(model=model):
+                fixture = json.loads((vendor.DEST / f"{model}.json").read_text())
+                self.assertEqual(strays(fixture), [])
+
     def test_fixture_ota_versions_match_pinned_upstream(self):
         versions = {"MOCK-A1": "01.05.00.00", "MOCK-H2D": "01.01.01.00",
                     "MOCK-X1CMULTIAMS": "01.09.00.01"}

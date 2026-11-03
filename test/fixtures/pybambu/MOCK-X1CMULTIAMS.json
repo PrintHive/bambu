@@ -635,7 +635,7 @@
         "force_upgrade": false,
         "idx": 10,
         "idx2": 559919763,
-        "lower_limit": "192.0.2.10",
+        "lower_limit": "00.00.00.00",
         "message": "verifying: n3s",
         "module": "",
         "new_version_state": 2,
