@@ -55,9 +55,11 @@ Print keys replace previous values shallowly. AMS keys merge one level deeper;
 module name. Arrays of AMS units and trays replace their previous arrays.
 Fan values retain the reported numeric scale without a percentage conversion.
 
-Only touched sections are projected again. Each Present leaf keeps its own
-`observedAt`; unrelated reports cannot refresh it. `delta` contains sections
-whose content changed, excluding timestamp-only changes. An identical report
+Only touched sections are projected again. Present, Absent, and Invalid readings
+carry their own `observedAt`; unrelated reports cannot refresh it. AMS absence
+uses the observation time of `ams_exist_bits: "0"`. Invalid readings also keep
+the raw value and decoding issue. Unknown and Unsupported carry no time.
+`delta` contains sections whose content changed, excluding timestamp-only changes. An identical report
 can refresh observation times while returning an empty delta. Untouched
 sections retain object identity. Staleness is a caller decision.
 

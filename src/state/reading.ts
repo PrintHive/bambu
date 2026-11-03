@@ -11,10 +11,10 @@ export interface UnsupportedSource {
 
 export type Reading<A> = Data.TaggedEnum<{
   Present: { readonly value: A; readonly observedAt: number }
-  Absent: {}
+  Absent: { readonly observedAt: number }
   Unknown: {}
   Unsupported: { readonly source: UnsupportedSource }
-  Invalid: { readonly raw: Schema.Json; readonly issue: string }
+  Invalid: { readonly raw: Schema.Json; readonly issue: string; readonly observedAt: number }
 }>
 
 interface ReadingDefinition extends Data.TaggedEnum.WithGenerics<1> {

@@ -30,10 +30,10 @@ const projectCollection = (node: Collection, context: Context): Reading.Reading<
 
   if (raw === undefined) {
     return path === "print.ams.ams" && atPath(context.evidence.raw, "print.ams.ams_exist_bits") === "0"
-      ? Reading.Absent() : Reading.Unknown()
+      ? Reading.Absent({ observedAt: observationTime(context.evidence, "print.ams.ams_exist_bits") }) : Reading.Unknown()
   }
 
-  if (!Array.isArray(raw)) return Reading.Invalid({ raw, issue: "Expected an array" })
+  if (!Array.isArray(raw)) return Reading.Invalid({ raw, issue: "Expected an array", observedAt: observationTime(context.evidence, path) })
 
   const value = new Map<string, Cells>()
 
@@ -64,7 +64,7 @@ export const project = <T extends FieldGroup>(group: T, context: Context): Proje
     else {
       out[key] = Result.match(Schema.decodeUnknownResult(node.schema)(raw), {
         onSuccess: (value) => Reading.Present({ value, observedAt: observationTime(context.evidence, path) }),
-        onFailure: (issue) => Reading.Invalid({ raw, issue: issue.message })
+        onFailure: (issue) => Reading.Invalid({ raw, issue: issue.message, observedAt: observationTime(context.evidence, path) })
       })
     }
   }
@@ -78,10 +78,12 @@ type Cell = Cells[string]
 const sameReading = (before: Cell, after: Cell, includeTime: boolean): boolean => Reading.match(before, {
   Present: (prior) => Predicate.isTagged(after, "Present") &&
     (!includeTime || prior.observedAt === after.observedAt) && sameValue(prior.value, after.value, includeTime),
-  Absent: () => Predicate.isTagged(after, "Absent"),
+  Absent: (prior) => Predicate.isTagged(after, "Absent") &&
+    (!includeTime || prior.observedAt === after.observedAt),
   Unknown: () => Predicate.isTagged(after, "Unknown"),
   Unsupported: ({ source }) => Predicate.isTagged(after, "Unsupported") && JSON.stringify(source) === JSON.stringify(after.source),
-  Invalid: ({ raw, issue }) => Predicate.isTagged(after, "Invalid") && issue === after.issue && JSON.stringify(raw) === JSON.stringify(after.raw)
+  Invalid: ({ raw, issue, observedAt }) => Predicate.isTagged(after, "Invalid") &&
+    (!includeTime || observedAt === after.observedAt) && issue === after.issue && JSON.stringify(raw) === JSON.stringify(after.raw)
 })
 
 const sameValue = (before: Schema.Json | ReadonlyMap<string, Cells>, after: Schema.Json | ReadonlyMap<string, Cells>, includeTime: boolean): boolean => {

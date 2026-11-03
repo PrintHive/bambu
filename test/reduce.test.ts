@@ -56,9 +56,11 @@ test("merge rules: AMS merges one level deeper but unit arrays replace", () => {
 test("merge rules: ams_exist_bits reset removes stale units and tray evidence", () => {
   const first = reduce(start(), { print: { ams: { ams_exist_bits: "1", tray_exist_bits: "15", ams: [{ id: "0" }] } } }, 1).state
   const result = reduce(first, { print: { ams: { ams_exist_bits: "0" } } }, 2)
-  assert.deepEqual(result.state.ams.units, Reading.Absent())
+  assert.deepEqual(result.state.ams.units, Reading.Absent({ observedAt: 2 }))
   assert.deepEqual(result.state.ams.trayExistBits, Reading.Unknown())
   assert.equal(present(result.state.ams.existBits).observedAt, 2)
+  const unrelated = reduce(result.state, { print: { wifi_signal: "-55dBm", ams: { tray_now: "255" } } }, 3).state
+  assert.deepEqual(unrelated.ams.units, Reading.Absent({ observedAt: 2 }))
   const reattached = reduce(result.state, { print: { ams: { ams_exist_bits: "1" } } }, 3).state
   assert.deepEqual(reattached.ams.units, Reading.Unknown())
 })
@@ -94,6 +96,49 @@ test("idempotency: the same report twice produces an empty content delta", () =>
   assert.equal(present(result.state.progress.percent).observedAt, 2)
   assert.equal(present(result.state.ams.units).observedAt, 2)
   assert.equal(present(first.progress.percent).observedAt, 1)
+})
+
+test("Invalid fields carry their observation time through unrelated reports", () => {
+  const first = reduce(start(), { print: { mc_percent: "bad" } }, 100).state
+  assert.equal(first.progress.percent._tag, "Invalid")
+  assert.ok("observedAt" in first.progress.percent)
+  assert.equal(first.progress.percent.observedAt, 100)
+  const next = reduce(first, { print: { layer_num: 3 } }, 200).state
+  assert.deepEqual(next.progress.percent, first.progress.percent)
+})
+
+test("repeated Invalid fields refresh observation time without a content delta", () => {
+  const report = { print: { mc_percent: "bad" } }
+  const first = reduce(start(), report, 100).state
+  const result = reduce(first, report, 200)
+  assert.equal(result.state.progress.percent._tag, "Invalid")
+  assert.ok("observedAt" in result.state.progress.percent)
+  assert.equal(result.state.progress.percent.observedAt, 200)
+  assert.deepEqual(result.delta, {})
+  assert.notEqual(result.state.progress, first.progress)
+  assert.equal(reduce(result.state, report, 200).state.progress, result.state.progress)
+})
+
+test("repeated AMS absence refreshes observation time without a content delta", () => {
+  const report = { print: { ams: { ams_exist_bits: "0" } } }
+  const first = reduce(start(), report, 100).state
+  const result = reduce(first, report, 200)
+  assert.deepEqual(result.state.ams.units, Reading.Absent({ observedAt: 200 }))
+  assert.deepEqual(first.ams.units, Reading.Absent({ observedAt: 100 }))
+  assert.deepEqual(result.delta, {})
+  assert.notEqual(result.state.ams, first.ams)
+  assert.equal(reduce(result.state, report, 200).state.ams, result.state.ams)
+})
+
+test("Invalid collections retain path observation time and refresh without a content delta", () => {
+  const report = { print: { hms: "bad" } }
+  const first = reduce(start(), report, 100).state
+  assert.deepEqual(first.faults.hms, Reading.Invalid({ raw: "bad", issue: "Expected an array", observedAt: 100 }))
+  const unrelated = reduce(first, { print: { print_error: 0 } }, 200).state
+  assert.deepEqual(unrelated.faults.hms, first.faults.hms)
+  const result = reduce(unrelated, report, 300)
+  assert.deepEqual(result.state.faults.hms, Reading.Invalid({ raw: "bad", issue: "Expected an array", observedAt: 300 }))
+  assert.deepEqual(result.delta, {})
 })
 
 test("Invalid leaf isolation preserves valid siblings and the raw invalid value", () => {
