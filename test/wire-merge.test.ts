@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { initialState, reduce } from "../src/index.ts"
 import { atPath, merge } from "../src/wire/merge.ts"
 
 const test: (name: string, run: () => void) => void = process.versions.bun ? (await import("node:test")).test : (await import("vitest")).test
@@ -25,4 +26,11 @@ test("AMS array replaced by an object forgets times for removed evidence", () =>
   for (const path of next.observedAt.keys()) assert.notEqual(atPath(next.raw, path), undefined, path)
 
   assert.equal(first.observedAt.get("print.ams.0"), 1)
+})
+
+test("a new dotted category keeps the time of the reading that shares its path", () => {
+  const first = reduce(initialState("000FAKE00000001"), { print: { mc_percent: 40 } }, 1).state
+  const next = reduce(first, { "print.mc_percent": { future: 1 } }, 2).state
+
+  assert.deepEqual(next.progress.percent, first.progress.percent)
 })
