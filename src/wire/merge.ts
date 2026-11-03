@@ -59,8 +59,24 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
         // Each get_version entry describes one whole module, so a match by name
         // replaces it, including fields the newer entry omits. Merging fields
         // could pair a swapped AMS unit's old `sn` with the new unit's `sw_ver`.
-        // Modules missing from a reply are kept: a reply need not list them all.
-        const modules = Array.isArray(old) ? [...old] : []
+        // Omitted named modules are kept; nameless modules have no identity,
+        // so each reply replaces that set. Reindex retained observation paths.
+        const modules: Schema.Json[] = []
+        forget(path, observedAt)
+
+        if (Array.isArray(old)) {
+          old.forEach((item, index) => {
+            if (!isObject(item) || item.name === undefined) return
+
+            const from = `${path}.${index}`
+            const to = `${path}.${modules.length}`
+            modules.push(item)
+
+            for (const [key, time] of previous.observedAt) {
+              if (key === from || key.startsWith(`${from}.`)) observedAt.set(`${to}${key.slice(from.length)}`, time)
+            }
+          })
+        }
 
         for (const item of value) {
           const index = isObject(item) && item.name !== undefined

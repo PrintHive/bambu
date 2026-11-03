@@ -335,3 +335,60 @@ test("all non-object category bodies invalidate claimed fields", () => {
     assert.deepEqual(result.state.hardware.modules, Reading.Invalid({ raw: body, issue: "Expected an object at info", observedAt: 100 }))
   }
 })
+
+
+test("nameless modules are replaced as a set across repeated version replies", () => {
+  const report = { info: { module: [{ name: "ota", sw_ver: "01.00" }, { sw_ver: "anonymous-1" }] } }
+  const first = reduce(start(), report, 100).state
+  const second = reduce(first, report, 200).state
+  const repeated = reduce(second, report, 300)
+  assert.deepEqual([...present(repeated.state.hardware.modules).value.keys()], ["ota", "#1"])
+  assert.deepEqual(repeated.delta, {})
+  assert.equal(present(repeated.state.hardware.modules).observedAt, 300)
+  const result = reduce(repeated.state, { info: { module: [{ sw_ver: "anonymous-2" }, { hw_ver: "anonymous-3" }] } }, 400)
+  const modules = present(result.state.hardware.modules).value
+  assert.deepEqual([...modules.keys()], ["ota", "#1", "#2"])
+  const ota = modules.get("ota")
+  const anonymous = modules.get("#1")
+  const added = modules.get("#2")
+  assert.ok(ota && anonymous && added)
+  assert.deepEqual(ota.softwareVersion, Reading.Present({ value: "01.00", observedAt: 300 }))
+  assert.deepEqual(anonymous.softwareVersion, Reading.Present({ value: "anonymous-2", observedAt: 400 }))
+  assert.deepEqual(added.hardwareVersion, Reading.Present({ value: "anonymous-3", observedAt: 400 }))
+  const cleared = reduce(result.state, { info: { module: [] } }, 500).state
+  assert.deepEqual([...present(cleared.hardware.modules).value.keys()], ["ota"])
+  assert.equal(present(first.hardware.modules).value.size, 2)
+})
+
+test("module index shifts preserve retained times and forget removed paths", () => {
+  const report = { info: { module: [{ sw_ver: "anonymous", hw_ver: "discard" }, { name: "ota", sw_ver: "01.00" }, { name: "ams/0", hw_ver: "01" }] } }
+  const previous = merge({ raw: {}, observedAt: new Map() }, report, 100)
+  const next = merge(previous, { info: { module: [{ sw_ver: "replacement" }] } }, 200)
+  assert.deepEqual(next.raw, { info: { module: [{ name: "ota", sw_ver: "01.00" }, { name: "ams/0", hw_ver: "01" }, { sw_ver: "replacement" }] } })
+  assert.deepEqual([...next.observedAt].sort(), [
+    ["info.module", 200],
+    ["info.module.0", 100],
+    ["info.module.0.name", 100],
+    ["info.module.0.sw_ver", 100],
+    ["info.module.1", 100],
+    ["info.module.1.name", 100],
+    ["info.module.1.hw_ver", 100],
+    ["info.module.2", 200],
+    ["info.module.2.sw_ver", 200]
+  ].sort())
+  const first = reduce(start(), report, 100).state
+  const result = reduce(first, { info: { module: [{ sw_ver: "replacement" }] } }, 200).state
+  const ota = present(result.hardware.modules).value.get("ota")
+  const ams = present(result.hardware.modules).value.get("ams/0")
+  assert.ok(ota && ams)
+  assert.deepEqual(ota.softwareVersion, Reading.Present({ value: "01.00", observedAt: 100 }))
+  assert.deepEqual(ota.hardwareVersion, Reading.Unknown())
+  assert.deepEqual(ams.hardwareVersion, Reading.Present({ value: "01", observedAt: 100 }))
+  const cleared = merge(next, { info: { module: [] } }, 300)
+  assert.equal([...cleared.observedAt.keys()].some((path) => path.startsWith("info.module.2")), false)
+  const replaced = reduce(result, { info: { module: [{ name: "ota", hw_ver: "02" }] } }, 400).state
+  const updated = present(replaced.hardware.modules).value.get("ota")
+  assert.ok(updated)
+  assert.deepEqual(updated.softwareVersion, Reading.Unknown())
+  assert.deepEqual(updated.hardwareVersion, Reading.Present({ value: "02", observedAt: 400 }))
+})

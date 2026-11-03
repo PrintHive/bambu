@@ -55,7 +55,10 @@ colors never acquire a default.
 
 Print keys replace previous values shallowly. AMS keys merge one level deeper;
 `ams_exist_bits: "0"` clears the previous AMS base. Version modules merge by
-module name. Arrays of AMS units and trays replace their previous arrays.
+module name, replacing each matching entry in full and keeping omitted named
+modules. Each module reply replaces the previous nameless set. Retained named
+modules keep their observation times even when array indexes shift.
+Arrays of AMS units and trays replace their previous arrays.
 Fan values retain the reported numeric scale without a percentage conversion.
 
 Only touched sections are projected again. Present, Absent, and Invalid readings
