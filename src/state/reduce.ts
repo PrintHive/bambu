@@ -80,8 +80,8 @@ export const reduce = (previous: PrinterState, report: Schema.JsonObject, now: n
   Schema.decodeUnknownSync(Schema.Finite)(now)
   const decoded = decodeReport(report)
   const evidence = merge(previous[evidenceKey], decoded, now)
-  const reportedType = atPath(evidence.raw, "print.printer_type") ?? atPath(evidence.raw, "info.printer_type")
-  const resolved = resolveModel(previous.serial, Predicate.isString(reportedType) ? reportedType : undefined)
+  const reportedType = [atPath(evidence.raw, "print.printer_type"), atPath(evidence.raw, "info.printer_type")].find(Predicate.isString)
+  const resolved = resolveModel(previous.serial, reportedType)
   const model = previous.model?.id === resolved?.id && previous.model?.via === resolved?.via ? previous.model : resolved
   const delta: { -readonly [K in keyof Delta]?: Delta[K] } = {}
 

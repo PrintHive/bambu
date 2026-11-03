@@ -423,3 +423,10 @@ test("HMS identity uses both fields and missing identities fall back to index", 
   assert.deepEqual(missing.code, Reading.Unknown())
   assert.deepEqual(missing.attr, Reading.Present({ value: 2, observedAt: 100 }))
 })
+
+
+test("model resolution falls back to info when print printer_type is not a string", () => {
+  const result = reduce(start(), { print: { printer_type: 3 }, info: { printer_type: "BL-P001" } }, 100)
+  assert.equal(result.state.model?.id, "X1C")
+  assert.equal(result.state.model?.via, "printer_type")
+})
