@@ -38,6 +38,8 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
     const oldBody = previous.raw[category]
     const next = isObject(oldBody) ? { ...oldBody } : {}
 
+    if (!isObject(oldBody)) forget(category, observedAt)
+
     for (const [key, value] of Object.entries(body)) {
       if (envelopeKeys.has(key)) continue
 
@@ -45,6 +47,7 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
       const old = next[key]
 
       if (category === "print" && key === "ams" && isObject(value)) {
+        if (!isObject(old)) forget(path, observedAt)
         const reset = value.ams_exist_bits === "0"
         const base = !reset && isObject(old) ? old : {}
         const merged = { ...base, ...value }
