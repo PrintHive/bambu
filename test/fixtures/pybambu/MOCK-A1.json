@@ -270,7 +270,7 @@
         {
           "name": "ota",
           "project_name": "N2S",
-          "sw_ver": "192.0.2.10",
+          "sw_ver": "01.05.00.00",
           "hw_ver": "OTA",
           "sn": "000FAKE00000001",
           "flag": 3
@@ -278,7 +278,7 @@
         {
           "name": "esp32",
           "project_name": "N2S",
-          "sw_ver": "192.0.2.10",
+          "sw_ver": "01.13.33.99",
           "hw_ver": "AP05",
           "sn": "000FAKE00000001",
           "flag": 0
@@ -286,8 +286,8 @@
         {
           "name": "mc",
           "project_name": "N2S",
-          "sw_ver": "192.0.2.10",
-          "loader_ver": "192.0.2.10",
+          "sw_ver": "00.01.29.83",
+          "loader_ver": "00.00.00.32",
           "hw_ver": "MC02",
           "sn": "000FAKE00000001",
           "flag": 0
@@ -295,8 +295,8 @@
         {
           "name": "th",
           "project_name": "N2S",
-          "sw_ver": "192.0.2.10",
-          "loader_ver": "192.0.2.10",
+          "sw_ver": "00.00.07.69",
+          "loader_ver": "00.00.00.26",
           "hw_ver": "TH01",
           "sn": "000FAKE00000001",
           "flag": 0
@@ -304,9 +304,9 @@
         {
           "name": "ams_f1/0",
           "project_name": "",
-          "sw_ver": "192.0.2.10",
-          "loader_ver": "192.0.2.10",
-          "ota_ver": "192.0.2.10",
+          "sw_ver": "00.00.07.94",
+          "loader_ver": "00.00.00.00",
+          "ota_ver": "00.00.00.00",
           "hw_ver": "AMS_F102",
           "sn": "000FAKE00000001",
           "flag": 0

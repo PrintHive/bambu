@@ -8,6 +8,11 @@ SHA = "0e027ff135a6d9265cb756d3e246747954c76722"
 ROOT = f"https://raw.githubusercontent.com/greghesp/ha-bambulab/{SHA}"
 DEST = Path(__file__).resolve().parents[1] / "test/fixtures/pybambu"
 MODELS = ("MOCK-A1", "MOCK-X1CMULTIAMS", "MOCK-H2D")
+VERSION_KEYS = {
+    "sw_ver", "hw_ver", "ver", "loader_ver", "ota_ver", "version", "cali_version",
+    "ahb_new_version_number", "ams_new_version_number", "ext_new_version_number",
+    "ota_new_version_number", "new_version_state",
+}
 
 
 def scrub(value, key=""):
@@ -29,7 +34,8 @@ def scrub(value, key=""):
     if isinstance(value, list):
         return [scrub(v) for v in value]
     if isinstance(value, str):
-        value = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "192.0.2.10", value)
+        if lower not in VERSION_KEYS:
+            value = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "192.0.2.10", value)
         value = re.sub(r"\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b", "02:00:00:00:00:01", value)
         value = re.sub(r"(?<![A-Z0-9])[A-Z0-9]{15}(?![A-Z0-9])", "000FAKE00000001", value)
     return value
