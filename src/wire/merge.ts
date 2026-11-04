@@ -45,7 +45,7 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
       const rest = { ...raw }
       delete rest[category]
 
-      for (const key of [...observedAt.keys()]) {
+      for (const key of observedAt.keys()) {
         if ((key === category || key.startsWith(`${category}.`)) && atPath(rest, key) === undefined) observedAt.delete(key)
       }
     }
