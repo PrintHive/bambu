@@ -9,7 +9,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[4]
-SYNC_COMMIT = "a1ff6a37a9e509a0b911dffdaadedf9a44072dd5"
+SYNC_COMMIT = "a140461b570d95ccd385d70d4cce0bbcee22cdfd"
 PROPERTY = "test/wire-merge.property.test.ts"
 SOURCE = ROOT / "src/wire/merge.ts"
 COVERED = ["src/wire/merge.ts", "src/wire/report.ts", "src/state/project.ts", "src/state/reduce.ts", PROPERTY]

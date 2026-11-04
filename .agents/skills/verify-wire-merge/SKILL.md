@@ -152,10 +152,8 @@ code changed without rechecking this verification.
 
 ## Coverage record
 
-SYNC_COMMIT: `a1ff6a37a9e509a0b911dffdaadedf9a44072dd5` (PR #3 head, with the dotted-category cleanup).
-If PR #3 is squashed, its squash commit on main becomes the sync point. Find it
-with `git log origin/main --grep='stale times' --format=%H -1` or look up PR #3,
-then update SYNC_COMMIT here and in the runner after checking the squash diff.
+SYNC_COMMIT: `a140461b570d95ccd385d70d4cce0bbcee22cdfd` (PR #3 squash on main; same
+covered code as its verified head `a1ff6a37a9e509a0b911dffdaadedf9a44072dd5`).
 
 - src/wire/merge.ts: merge, stamp, forget, sourceAtPath, atPath.
 - src/wire/report.ts: isObject boundary semantics, confirmed from source.
