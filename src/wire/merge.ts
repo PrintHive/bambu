@@ -38,9 +38,17 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
     const oldBody = previous.raw[category]
     const next = isObject(oldBody) ? { ...oldBody } : {}
 
-    // An absent category has nothing to forget. A dotted category name can
-    // share its path with a real reading, such as print.mc_percent.
-    if (oldBody !== undefined && !isObject(oldBody)) forget(category, observedAt)
+    // Forget times only for evidence the old body held. A dotted category name
+    // such as "print.mc_percent" shares its path with a real reading, whose
+    // time must survive.
+    if (oldBody !== undefined && !isObject(oldBody)) {
+      const rest = { ...raw }
+      delete rest[category]
+
+      for (const key of [...observedAt.keys()]) {
+        if ((key === category || key.startsWith(`${category}.`)) && atPath(rest, key) === undefined) observedAt.delete(key)
+      }
+    }
 
     for (const [key, value] of Object.entries(body)) {
       if (envelopeKeys.has(key)) continue
