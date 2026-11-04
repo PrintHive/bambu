@@ -47,7 +47,18 @@ def mutants():
     if run(300).returncode:
         print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
         return 1
+    # The lock holds the original bytes. It stops a concurrent run, and if a run
+    # is killed before cleanup, it keeps the bytes needed to restore merge.ts.
+    lock = ROOT / subprocess.run(["git", "rev-parse", "--git-path", "verify-wire-merge.lock"], cwd=ROOT, text=True, capture_output=True, check=True).stdout.strip()
     original = SOURCE.read_bytes()
+    try:
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        print(f"LOCKED: {lock} exists. Another mutants run is active, or one was killed before cleanup.")
+        print(f"If no run is active, restore with `cp {lock} src/wire/merge.ts`, check `git diff -- src/wire/merge.ts`, then delete the lock.")
+        return 1
+    with os.fdopen(descriptor, "wb") as saved:
+        saved.write(original)
     failures = 0
     signal.signal(signal.SIGTERM, interrupted)
     try:
@@ -67,6 +78,7 @@ def mutants():
                 SOURCE.write_bytes(original)
     finally:
         SOURCE.write_bytes(original)
+        lock.unlink()
     return int(bool(failures))
 
 

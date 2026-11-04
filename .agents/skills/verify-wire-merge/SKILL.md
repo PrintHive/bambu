@@ -57,8 +57,11 @@ The runner prints elapsed wall time.
 nonzero with `REFUSED`, applies no mutants, and credits no kills. On a green
 baseline it requires a counterexample for each break at the same 300-case bound.
 It restores exact original bytes on errors and catchable interrupts. Do not edit
-merge.ts concurrently with a mutation run. Uncatchable termination cannot run
-cleanup; inspect `git diff -- src/wire/merge.ts` afterward. The validation table below uses the real committed baseline.
+merge.ts during a mutation run. Each run takes a lock at
+`$(git rev-parse --git-path verify-wire-merge.lock)` that holds the original
+bytes. A second run refuses with `LOCKED`. If a run is killed before cleanup,
+the lock stays behind. The next run refuses and prints how to restore merge.ts
+from it. The validation table below uses the real committed baseline.
 
 ## Bounds and assumptions
 
