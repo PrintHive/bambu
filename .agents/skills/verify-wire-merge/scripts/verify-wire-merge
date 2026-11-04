@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[4]
 SYNC_COMMIT = "a140461b570d95ccd385d70d4cce0bbcee22cdfd"
 PROPERTY = "test/wire-merge.property.test.ts"
 SOURCE = ROOT / "src/wire/merge.ts"
-COVERED = ["src/wire/merge.ts", "src/wire/report.ts", "src/state/project.ts", "src/state/reduce.ts", PROPERTY]
+SOURCES = ["src/wire/merge.ts", "src/wire/report.ts", "src/state/project.ts", "src/state/reduce.ts"]
+COVERED = [*SOURCES, PROPERTY]
 
 
 def run(count):
@@ -42,23 +43,33 @@ def interrupted(signum, frame):
     raise KeyboardInterrupt
 
 
+def lock_path():
+    return ROOT / subprocess.run(["git", "rev-parse", "--git-path", "verify-wire-merge.lock"], cwd=ROOT, text=True, capture_output=True, check=True).stdout.strip()
+
+
+def locked(lock):
+    print(f"LOCKED: {lock} exists. A mutants run is active, or one was killed before cleanup.")
+    print(f"If no run is active, restore with `cp {lock} src/wire/merge.ts`, check `git diff -- src/wire/merge.ts`, then delete the lock.")
+    return 1
+
+
 def mutants():
-    # A pre-existing failure is never evidence that a mutation was detected.
-    if run(300).returncode:
-        print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
-        return 1
-    # The lock holds the original bytes. It stops a concurrent run, and if a run
-    # is killed before cleanup, it keeps the bytes needed to restore merge.ts.
-    lock = ROOT / subprocess.run(["git", "rev-parse", "--git-path", "verify-wire-merge.lock"], cwd=ROOT, text=True, capture_output=True, check=True).stdout.strip()
-    original = SOURCE.read_bytes()
+    # Take the lock before reading merge.ts or running the baseline, so no other
+    # run's mutation can be read as the original. The lock holds the original
+    # bytes, so a run killed before cleanup leaves what is needed to restore it.
+    lock = lock_path()
     try:
         descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
-        print(f"LOCKED: {lock} exists. Another mutants run is active, or one was killed before cleanup.")
-        print(f"If no run is active, restore with `cp {lock} src/wire/merge.ts`, check `git diff -- src/wire/merge.ts`, then delete the lock.")
-        return 1
+        return locked(lock)
+    original = SOURCE.read_bytes()
     with os.fdopen(descriptor, "wb") as saved:
         saved.write(original)
+    # A pre-existing failure is never evidence that a mutation was detected.
+    if run(300).returncode:
+        lock.unlink()
+        print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
+        return 1
     failures = 0
     signal.signal(signal.SIGTERM, interrupted)
     try:
@@ -91,10 +102,20 @@ def main():
             print("Uncommitted changes in covered files; commit or revert them, then rerun drift:")
             print(status.stdout, end="")
             return 1
-        return subprocess.run(["git", "log", "--oneline", f"{SYNC_COMMIT}..HEAD", "--", *COVERED], cwd=ROOT).returncode
+        # Compare content, not history: merged branch commits that a squash
+        # replaced are not drift when the covered source is unchanged.
+        if subprocess.run(["git", "diff", "--quiet", SYNC_COMMIT, "HEAD", "--", *SOURCES], cwd=ROOT).returncode == 0:
+            print(f"No covered source changes since {SYNC_COMMIT}.")
+            return 0
+        print(f"Covered source changed since {SYNC_COMMIT}; recheck the verification before moving the sync commit:")
+        subprocess.run(["git", "diff", "--stat", SYNC_COMMIT, "HEAD", "--", *SOURCES], cwd=ROOT)
+        subprocess.run(["git", "log", "--oneline", f"{SYNC_COMMIT}..HEAD", "--", *SOURCES], cwd=ROOT)
+        return 1
     version = json.loads((ROOT / "node_modules/fast-check/package.json").read_text())["version"]
     if version != "4.10.2":
         raise SystemExit(f"Expected fast-check 4.10.2, got {version}; run bun install --frozen-lockfile")
+    if command in ("check", "deep") and lock_path().exists():
+        return locked(lock_path())
     if command == "check":
         return run(300).returncode
     if command == "deep":

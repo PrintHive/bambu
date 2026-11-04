@@ -59,7 +59,9 @@ baseline it requires a counterexample for each break at the same 300-case bound.
 It restores exact original bytes on errors and catchable interrupts. Do not edit
 merge.ts during a mutation run. Each run takes a lock at
 `$(git rev-parse --git-path verify-wire-merge.lock)` that holds the original
-bytes. A second run refuses with `LOCKED`. If a run is killed before cleanup,
+bytes. It takes the lock before reading merge.ts or running its baseline. A
+second `mutants` run, and any `check` or `deep` run, refuses with `LOCKED` while
+the lock is held. If a run is killed before cleanup,
 the lock stays behind. The next run refuses and prints how to restore merge.ts
 from it. The validation table below uses the real committed baseline.
 
@@ -162,9 +164,11 @@ covered code as its verified head `a1ff6a37a9e509a0b911dffdaadedf9a44072dd5`).
 - src/state/reduce.ts: merge callers, read for scope only.
 - test/wire-merge.property.test.ts: generators, independent fold and assertions.
 
-`drift` lists changes to these files since SYNC_COMMIT. It exits nonzero and
-lists the files when any covered file has uncommitted changes, so commit or
-revert them first. Move the sync commit
+`drift` compares the covered source files at SYNC_COMMIT and HEAD by content.
+It exits 0 when they match, and exits 1 with the changed files and commits when
+they differ. A merged branch whose squash replaced its commits is not drift.
+It also exits 1, listing the files, when any covered file has uncommitted
+changes, so commit or revert them first. Move the sync commit
 forward here and in the runner only after confirming that the model still
 describes the new code. A sync record identifies reviewed source; it does
 not imply that the recorded source passes the properties.
