@@ -102,9 +102,12 @@ Both findings were fixed in commit `747768d94c106276b5f3cf016c496657136119f2` in
 
 Harm: observedAt retains a source time for a value that no longer exists.
 
-Fix before writing keys: `if (oldBody !== undefined && !isObject(oldBody)) forget(category, observedAt)`.
-The `undefined` guard came from review: an absent category has nothing to forget,
-and forgetting a dotted category's path would drop a real reading's time.
+Fix before writing keys: when `oldBody` exists and is not an object, forget only
+the times under `category` that no longer resolve once the old body is removed.
+Review added both conditions. An absent category has nothing to forget, and a
+dotted category such as `"print.mc_percent"` shares its path with a real reading
+whose time must survive. The example tests in `test/wire-merge.test.ts` cover
+both dotted cases through `reduce`.
 The fix now clears these times before writing keys.
 
 ### AMS array replaced by an object retains deleted paths
@@ -146,7 +149,7 @@ code changed without rechecking this verification.
 
 ## Coverage record
 
-SYNC_COMMIT: `2d9581c08e6b9360ca2bf54ee43970c04fc04e92` (PR #3 head, with the dotted-category guard).
+SYNC_COMMIT: `a1ff6a37a9e509a0b911dffdaadedf9a44072dd5` (PR #3 head, with the dotted-category cleanup).
 If PR #3 is squashed, its squash commit on main becomes the sync point. Find it
 with `git log origin/main --grep='stale times' --format=%H -1` or look up PR #3,
 then update SYNC_COMMIT here and in the runner after checking the squash diff.

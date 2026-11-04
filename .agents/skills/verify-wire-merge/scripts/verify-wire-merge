@@ -9,7 +9,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[4]
-SYNC_COMMIT = "2d9581c08e6b9360ca2bf54ee43970c04fc04e92"
+SYNC_COMMIT = "a1ff6a37a9e509a0b911dffdaadedf9a44072dd5"
 PROPERTY = "test/wire-merge.property.test.ts"
 SOURCE = ROOT / "src/wire/merge.ts"
 COVERED = ["src/wire/merge.ts", "src/wire/report.ts", "src/state/project.ts", "src/state/reduce.ts", PROPERTY]
@@ -26,7 +26,7 @@ def run(count):
 
 
 MUTANTS = [
-    ("omit category shape cleanup", "    if (oldBody !== undefined && !isObject(oldBody)) forget(category, observedAt)\n", ""),
+    ("omit category shape cleanup", "    if (oldBody !== undefined && !isObject(oldBody)) {", "    if (false) {"),
     ("omit AMS shape cleanup", "        if (!isObject(old)) forget(path, observedAt)\n", ""),
     ("omit module subtree cleanup", "const modules: Schema.Json[] = []\n        forget(path, observedAt)", "const modules: Schema.Json[] = []"),
     ("match modules by index", "modules.findIndex((candidate) => isObject(candidate) && candidate.name === item.name)", "0"),
