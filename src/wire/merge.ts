@@ -38,6 +38,18 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
     const oldBody = previous.raw[category]
     const next = isObject(oldBody) ? { ...oldBody } : {}
 
+    // Forget times only for evidence the old body held. A dotted category name
+    // such as "print.mc_percent" shares its path with a real reading, whose
+    // time must survive.
+    if (oldBody !== undefined && !isObject(oldBody)) {
+      const rest = { ...raw }
+      delete rest[category]
+
+      for (const key of observedAt.keys()) {
+        if ((key === category || key.startsWith(`${category}.`)) && atPath(rest, key) === undefined) observedAt.delete(key)
+      }
+    }
+
     for (const [key, value] of Object.entries(body)) {
       if (envelopeKeys.has(key)) continue
 
@@ -45,6 +57,7 @@ export const merge = (previous: Evidence, report: Schema.JsonObject, now: number
       const old = next[key]
 
       if (category === "print" && key === "ams" && isObject(value)) {
+        if (!isObject(old)) forget(path, observedAt)
         const reset = value.ams_exist_bits === "0"
         const base = !reset && isObject(old) ? old : {}
         const merged = { ...base, ...value }
