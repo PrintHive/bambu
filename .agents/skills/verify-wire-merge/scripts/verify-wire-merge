@@ -65,14 +65,13 @@ def mutants():
     original = SOURCE.read_bytes()
     with os.fdopen(descriptor, "wb") as saved:
         saved.write(original)
-    # A pre-existing failure is never evidence that a mutation was detected.
-    if run(300).returncode:
-        lock.unlink()
-        print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
-        return 1
     failures = 0
     signal.signal(signal.SIGTERM, interrupted)
     try:
+        # A pre-existing failure is never evidence that a mutation was detected.
+        if run(300).returncode:
+            print("REFUSED: baseline check is red at 300 cases; no mutants were applied or credited. Fix or separately validate the baseline first.")
+            return 1
         for label, before, after in MUTANTS:
             text = original.decode()
             if text.count(before) != 1:
@@ -88,6 +87,8 @@ def mutants():
             finally:
                 SOURCE.write_bytes(original)
     finally:
+        # The baseline runs inside this scope, so an interrupted baseline also
+        # releases the lock instead of blocking later check and deep runs.
         SOURCE.write_bytes(original)
         lock.unlink()
     return int(bool(failures))
