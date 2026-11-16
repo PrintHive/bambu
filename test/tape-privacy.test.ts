@@ -48,6 +48,9 @@ const privacyViolations = (value: Schema.Json, path = ""): ReadonlyArray<string>
       if (!/^\[?2001:db8:/i.test(address)) problems.push(`${path} contains an IPv6 address`)
     }
 
+    // A partial redaction leaves hex groups glued to the placeholder.
+    if (/[0-9a-f]{1,4}:<redacted>|<redacted>:[0-9a-f]{1,4}/i.test(value)) problems.push(`${path} contains part of an address`)
+
     for (const [url] of value.matchAll(URL_TEXT)) {
       if (url !== SCRUBBED_URL) problems.push(`${path} contains a URL`)
     }
@@ -156,7 +159,9 @@ test("the guard rejects every kind of unscrubbed identifier", () => {
     { msg: "reached [2a00:1450:4001:81b::200e]:8883" },
     { msg: "reached 2a00:1450:4001:081b:0000:0000:0000:200e" },
     { msg: "reached 10.01.00.05 over Wi-Fi" },
-    { ip: "10.01.00.05" }
+    { ip: "10.01.00.05" },
+    { msg: "at fe80:<redacted>:de now" },
+    { msg: "at <redacted>::1 now" }
   ]
 
   for (const [index, fixture] of fixtures.entries()) {

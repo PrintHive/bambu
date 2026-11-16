@@ -93,6 +93,11 @@ test("IPv6 addresses are replaced with the documentation address", () => {
     }
   }
 
+  // Six two-digit groups inside an IPv6 address also look like a MAC; the whole address must go.
+  for (const address of ["fe80:12:34:56:78:9a:bc:de", "2a00:12:34:56:78:9a:bc::1", "fd00::12:34:56:78:9a:bc"]) {
+    assert.deepEqual(new TapeScrubber().scrub({ msg: `at ${address} now` }), { msg: "at 2001:db8::1 now" }, address)
+  }
+
   // Times and MAC-like values are not IPv6.
   assert.deepEqual(new TapeScrubber().scrub({ msg: "at 12:30:45" }), { msg: "at 12:30:45" })
 })
@@ -161,4 +166,13 @@ test("a malformed tape line is rejected with its line number", () => {
   assert.throws(() => parseTape(""), /header line/)
   assert.throws(() => parseTape(`${JSON.stringify(header)}\n{"t":0}\n`), /line 2/)
   assert.throws(() => parseTape(`${JSON.stringify(header)}\n\nnot json\n`), /line 3/)
+})
+
+test("a tape with more synthetic task ids than the guard accepts is refused, not written", () => {
+  const scrubber = new TapeScrubber()
+
+  for (let id = 0; id < 999; id++) scrubber.scrub({ task_id: String(1_000_000 + id) })
+
+  assert.deepEqual(scrubber.scrub({ task_id: "1000998" }), { task_id: "999" })
+  assert.throws(() => scrubber.scrub({ task_id: "2000000" }), /at most 999 distinct task ids/)
 })

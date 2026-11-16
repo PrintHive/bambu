@@ -23,6 +23,9 @@ const TASK_FIELD = /^(task_id|subtask_id|project_id|profile_id|job_id|design_id)
 /** Version fields may hold `01.09.00.01`, which elsewhere would be an address. */
 const VERSION_FIELD = /(^|_)(ver|version|firmware)$/i
 
+/** Synthetic task ids stay at three digits or fewer, which the privacy guard relies on. */
+export const MAX_SYNTHETIC_TASKS = 999
+
 /** `0`, `-1` and empty mean "no task", so they carry nothing and stay. */
 const UNSET_ID = /^(|0+|-1)$/
 
@@ -62,6 +65,10 @@ export class TapeScrubber {
 
     const synthetic = this.tasks.get(text) ?? this.tasks.size + 1
 
+    if (synthetic > MAX_SYNTHETIC_TASKS) {
+      throw new Error(`A tape may hold at most ${MAX_SYNTHETIC_TASKS} distinct task ids; split the capture`)
+    }
+
     this.tasks.set(text, synthetic)
 
     return Predicate.isNumber(value) ? synthetic : String(synthetic)
@@ -98,9 +105,10 @@ export class TapeScrubber {
     return text
       .replace(URL_TEXT, SCRUBBED_URL)
       .replace(SERIAL_TEXT, (serial) => this.serial(serial))
+      // IPv6 goes before MAC: six two-digit groups inside an IPv6 address also look like a MAC address.
+      .replace(IPV6_TEXT, DOCUMENTATION_IPV6)
       .replace(DOTTED_QUAD, DOCUMENTATION_IP)
       .replace(MAC, "<redacted>")
-      .replace(IPV6_TEXT, DOCUMENTATION_IPV6)
   }
 
   scrub(value: Schema.Json, key = ""): Schema.Json {
