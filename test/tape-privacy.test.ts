@@ -1,20 +1,30 @@
 // Every committed tape must contain only scrubbed identifiers. This repository is public, so a tape that
-// fails here must not be committed. Ported from PrintHive hive's tape-privacy guard, with zero-padded
-// addresses and job names added.
+// fails here must not be committed. Ported from PrintHive hive's tape-privacy guard and extended. Its
+// patterns are written separately from the scrubber's on purpose, so a scrubber gap does not hide here too.
 import assert from "node:assert/strict"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Predicate, type Schema } from "effect"
 import { isObject } from "../src/wire/report.ts"
-import { isFirmwareVersion, SCRUBBED_JOB, SCRUBBED_PAYLOAD, SCRUBBED_SERIAL, SERIAL_TEXT } from "../src/tape/scrub.ts"
+import { SCRUBBED_JOB, SCRUBBED_PAYLOAD, SCRUBBED_SERIAL, SCRUBBED_URL } from "../src/tape/scrub.ts"
 
 const test: (name: string, run: () => void) => void = process.versions.bun ? (await import("node:test")).test : (await import("vitest")).test
 
 const SERIAL_FIELD = /(^|[_-])(sn|serial([_-]?number)?|ams_id|dev_id)$/i
-const PRIVATE_FIELD = /^(.*ssid|host(name)?|host_name|access[_-]?(code|token)|password|.*mac([_-]?address)?)$/i
+const PRIVATE_FIELD =
+  /^(.*ssid|host(name)?|host_name|access[_-]?(code|token)|password|.*mac([_-]?address)?|dev(ice)?_(product_)?name|wifi_name|user[_-]?id|uid|.*url)$/i
+const TASK_FIELD = /^(task_id|subtask_id|project_id|profile_id|job_id|design_id)$/
+const VERSION_FIELD = /(^|_)(ver|version|firmware)$/i
+const SERIAL_TEXT = /\b(?=[0-9A-Z]*[A-Z])[0-9][0-9A-Z]{14,15}\b/g
 const DOTTED_QUAD = /(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.])/g
 const MAC = /\b[\da-f]{2}(?:[:-][\da-f]{2}){5}\b/i
+const URL_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi
+/** Any run with `::`, or eight hex groups, is an IPv6 literal. */
+const IPV6 = /(?<![\w:.])\[?(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?)/gi
+
+/** Synthetic task ids are small counters; a real cloud id is much longer. */
+const syntheticTask = (value: Schema.Json): boolean => /^(|0+|-1|[1-9]\d{0,2})$/.test(String(value))
 
 /** RFC 5737 documentation ranges are the only addresses a tape may hold. */
 const documentationIp = (value: string): boolean =>
@@ -28,7 +38,15 @@ const privacyViolations = (value: Schema.Json, path = ""): ReadonlyArray<string>
     if (MAC.test(value)) problems.push(`${path} contains a MAC address`)
 
     for (const [quad] of value.matchAll(DOTTED_QUAD)) {
-      if (!isFirmwareVersion(quad) && !documentationIp(quad)) problems.push(`${path} contains an IPv4 address`)
+      if (!documentationIp(quad)) problems.push(`${path} contains an IPv4 address`)
+    }
+
+    for (const [address] of value.matchAll(IPV6)) {
+      if (!/^\[?2001:db8:/i.test(address)) problems.push(`${path} contains an IPv6 address`)
+    }
+
+    for (const [url] of value.matchAll(URL_TEXT)) {
+      if (url !== SCRUBBED_URL) problems.push(`${path} contains a URL`)
     }
 
     for (const [serial] of value.matchAll(SERIAL_TEXT)) {
@@ -48,7 +66,9 @@ const privacyViolations = (value: Schema.Json, path = ""): ReadonlyArray<string>
 
   return Object.entries(value).flatMap(([key, entry]) => {
     const fieldPath = `${path}.${key}`
-    const problems = [...privacyViolations(entry, fieldPath)]
+    // A version field may hold exactly `01.09.00.01`, which anywhere else would be an address.
+    const version = VERSION_FIELD.test(key) && Predicate.isString(entry) && /^\d{2}(\.\d{2}){3}$/.test(entry)
+    const problems = version ? [] : [...privacyViolations(entry, fieldPath)]
 
     if (SERIAL_FIELD.test(key) && entry !== "") {
       // A numeric ams_id selects an AMS unit or the external spool (255).
@@ -61,7 +81,9 @@ const privacyViolations = (value: Schema.Json, path = ""): ReadonlyArray<string>
       problems.push(`${fieldPath} is a network address`)
     }
 
-    if (PRIVATE_FIELD.test(key) && entry !== "") problems.push(`${fieldPath} is a private network field`)
+    if (PRIVATE_FIELD.test(key) && entry !== "") problems.push(`${fieldPath} is a private field`)
+
+    if (TASK_FIELD.test(key) && !syntheticTask(entry)) problems.push(`${fieldPath} is a cloud task id`)
 
     if (key === "raw" && entry !== SCRUBBED_PAYLOAD) problems.push(`${fieldPath} is an unparsed payload`)
 
@@ -117,7 +139,21 @@ test("the guard rejects every kind of unscrubbed identifier", () => {
     { device: { dev_id: "01PTEST000000001" } },
     { message: "AMS 006TEST000000009 offline" },
     { raw: "unparsed" },
-    { print: { subtask_name: "CUSTOMER_PART_x3" } }
+    { print: { subtask_name: "CUSTOMER_PART_x3" } },
+    { print: { task_id: "817264" } },
+    { print: { project_id: 52814471 } },
+    { dev_name: "Workshop printer" },
+    { dev_product_name: "My P1S" },
+    { user_id: "1234567" },
+    { uid: "1234567" },
+    { wifi_name: "test-network" },
+    { ipcam: { rtsp_url: "rtsps://bblp:secret@printer.local:322/streaming/live/1" } },
+    { msg: "stream at rtsps://bblp:secret@printer.local:322/live" },
+    { msg: "reached fe80::1%eth0" },
+    { msg: "reached [2a00:1450:4001:81b::200e]:8883" },
+    { msg: "reached 2a00:1450:4001:081b:0000:0000:0000:200e" },
+    { msg: "reached 10.01.00.05 over Wi-Fi" },
+    { ip: "10.01.00.05" }
   ]
 
   for (const [index, fixture] of fixtures.entries()) {
@@ -138,8 +174,16 @@ test("the guard permits synthetic serials, empty fields, zero IPs, RFC 5737 addr
       net: { info: [{ ip: 0 }, { ip: "192.0.2.1" }, { ip: "198.51.100.2" }] },
       ip: "203.0.113.3",
       sw_ver: "01.09.00.01",
+      loader_ver: "00.00.00.14",
       subtask_name: "scrubbed-job",
-      gcode_file: ""
+      gcode_file: "",
+      task_id: "1",
+      subtask_id: "0",
+      project_id: 2,
+      profile_id: "-1",
+      dev_name: "",
+      rtsp_url: "",
+      msg: `see ${SCRUBBED_URL} at 2001:db8::1 or [2001:db8::1]:8883 at 12:30:45`
     }),
     []
   )

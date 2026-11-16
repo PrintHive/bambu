@@ -28,7 +28,7 @@ This repository is public, so a capture is scrubbed before it is committed:
 bun scripts/scrub-tape.ts capture.jsonl test/fixtures/tapes/p1s-01.09.00.00/idle-2026-09-18.jsonl
 ```
 
-The scrubber replaces serials with `<prefix>MOCK<counter>`, consistently across a tape, and network addresses with RFC 5737 documentation addresses. It blanks MAC addresses, Wi-Fi names, hostnames, credentials, RFID identifiers and print job names, and keeps firmware versions and every other wire value. `test/tape-privacy.test.ts` checks every committed tape and fails the build on any identifier left behind. Name a tape after the model, firmware and scenario, never after the printer.
+The scrubber replaces serials with `<prefix>MOCK<counter>` and cloud task, project and profile ids with small counters, consistently across a tape. IPv4 and IPv6 addresses become documentation addresses (RFC 5737, RFC 3849), and URLs become a placeholder. It blanks MAC addresses, Wi-Fi names, hostnames, device and user names, credentials, RFID identifiers and print job names. Version fields keep their versions, and every other wire value is kept. `test/tape-privacy.test.ts` checks every committed tape and fails the build on any identifier left behind. Name a tape after the model, firmware and scenario, never after the printer.
 
 ## License
 

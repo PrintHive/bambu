@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { formatTape, parseTape, type Tape } from "../src/tape/format.ts"
-import { isFirmwareVersion, scrubTape, TapeScrubber } from "../src/tape/scrub.ts"
+import { scrubTape, TapeScrubber } from "../src/tape/scrub.ts"
 
 const test: (name: string, run: () => void) => void = process.versions.bun ? (await import("node:test")).test : (await import("vitest")).test
 
@@ -71,15 +71,54 @@ test("scrubbing is deterministic and idempotent", () => {
   assert.equal(formatTape(scrubTape(parseTape(once))), once)
 })
 
-test("zero-padded addresses are scrubbed, firmware versions are kept", () => {
-  for (const address of ["192.168.001.010", "010.000.000.005", "10.10.10.10", "192.168.1.20"]) {
+test("every dotted address is scrubbed in text, and versions survive only in version fields", () => {
+  for (const address of ["192.168.001.010", "010.000.000.005", "10.10.10.10", "192.168.1.20", "10.01.00.05"]) {
     assert.deepEqual(new TapeScrubber().scrub({ msg: `host ${address}` }), { msg: "host 192.0.2.1" }, address)
+    assert.deepEqual(new TapeScrubber().scrub({ ip: address }), { ip: "192.0.2.1" }, address)
   }
 
-  for (const version of ["01.09.00.01", "00.00.00.00", "00.01.32.93"]) {
-    assert.deepEqual(new TapeScrubber().scrub({ sw_ver: version }), { sw_ver: version }, version)
-    assert.equal(isFirmwareVersion(version), true)
+  for (const [key, version] of [["sw_ver", "01.09.00.01"], ["loader_ver", "00.00.00.14"], ["firmware", "01.09.00.00"], ["hw_ver", "00.00.00.00"]] as const) {
+    assert.deepEqual(new TapeScrubber().scrub({ [key]: version }), { [key]: version }, key)
   }
+
+  // A version field holding something other than a version is scrubbed like any text.
+  assert.deepEqual(new TapeScrubber().scrub({ sw_ver: "from 192.168.1.20" }), { sw_ver: "from 192.0.2.1" })
+})
+
+test("IPv6 addresses are replaced with the documentation address", () => {
+  for (const address of ["fe80::1%eth0", "[2a00:1450:4001:81b::200e]", "2a00:1450:4001:081b:0000:0000:0000:200e", "::1"]) {
+    for (const text of [`at ${address}`, `at ${address}:8883`]) {
+      // The port may be kept or scrubbed with the address; the address itself never survives.
+      assert.match(JSON.stringify(new TapeScrubber().scrub({ msg: text })), /^\{"msg":"at 2001:db8::1(:8883)?"\}$/, text)
+    }
+  }
+
+  // Times and MAC-like values are not IPv6.
+  assert.deepEqual(new TapeScrubber().scrub({ msg: "at 12:30:45" }), { msg: "at 12:30:45" })
+})
+
+test("URLs, device and user names, and Wi-Fi names are removed", () => {
+  assert.deepEqual(
+    new TapeScrubber().scrub({
+      ipcam: { rtsp_url: "rtsps://bblp:secret@printer.local:322/streaming/live/1" },
+      msg: "stream at rtsps://bblp:secret@printer.local:322/live now",
+      dev_name: "Workshop printer",
+      dev_product_name: "My P1S",
+      user_id: "1234567",
+      uid: 1234567,
+      wifi_name: "test-network"
+    }),
+    { ipcam: { rtsp_url: "" }, msg: "stream at <redacted-url> now", dev_name: "", dev_product_name: "", user_id: "", uid: "", wifi_name: "" }
+  )
+})
+
+test("cloud task ids become small synthetic ids of the same type, consistently across a tape", () => {
+  const scrubber = new TapeScrubber()
+
+  assert.deepEqual(scrubber.scrub({ print: { task_id: "817264", subtask_id: "0", project_id: 52814471, profile_id: "-1" } }), {
+    print: { task_id: "1", subtask_id: "0", project_id: 2, profile_id: "-1" }
+  })
+  assert.deepEqual(scrubber.scrub({ print: { task_id: "817264" } }), { print: { task_id: "1" } })
 })
 
 test("job names are replaced, and an empty one stays empty", () => {
