@@ -1,0 +1,19 @@
+These tapes are PrintHive's own captures of real printers, scrubbed before commit.
+Each is JSON Lines: a header line, then one line per MQTT frame with `t` (seconds
+from capture start), `dir` (`rx` from the printer, `tx` to it), `topic`, and
+`frame` (or `raw` for a payload that was not a JSON object).
+
+p1s-01.09.00.00/idle-2026-09-18.jsonl
+  A Bambu Lab P1S on firmware 01.09.00.00, idle, with one AMS. Imported from
+  PrintHive/hive at 9e767d21b1 (apps/hive-link/src/scripts/mock-printer/tapes/bambu/
+  p1s-01.09.00.00/), the commit that scrubbed it, then passed through
+  scripts/scrub-tape.ts, which also replaces the print job name.
+
+Scrubbing replaces device and module serials with <prefix>MOCK<counter>, network
+addresses with RFC 5737 documentation addresses, and blanks MAC addresses, Wi-Fi
+names, hostnames, credentials, RFID identifiers and job names. Firmware versions
+and all other wire values are kept. test/tape-privacy.test.ts checks every tape
+here, so a tape that still holds a real identifier fails the build.
+
+Add a tape with: bun scripts/scrub-tape.ts <capture.jsonl> test/fixtures/tapes/<model>-<firmware>/<scenario>-<date>.jsonl
+Never commit a capture before scrubbing it, and never name a tape after the printer.

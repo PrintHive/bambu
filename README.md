@@ -18,6 +18,18 @@ bun run check
 bun run build
 ```
 
+### Tapes
+
+A tape is a captured, scrubbed session with a real printer, stored as JSON Lines in `test/fixtures/tapes/`. Tapes are the truth: `test/tape-replay.test.ts` replays each one through `reduce` with no emulator involved, and checks the state against values read from the capture.
+
+This repository is public, so a capture is scrubbed before it is committed:
+
+```sh
+bun scripts/scrub-tape.ts capture.jsonl test/fixtures/tapes/p1s-01.09.00.00/idle-2026-09-18.jsonl
+```
+
+The scrubber replaces serials with `<prefix>MOCK<counter>`, consistently across a tape, and network addresses with RFC 5737 documentation addresses. It blanks MAC addresses, Wi-Fi names, hostnames, credentials, RFID identifiers and print job names, and keeps firmware versions and every other wire value. `test/tape-privacy.test.ts` checks every committed tape and fails the build on any identifier left behind. Name a tape after the model, firmware and scenario, never after the printer.
+
 ## License
 
 MIT
