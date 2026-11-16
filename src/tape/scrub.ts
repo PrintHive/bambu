@@ -7,6 +7,7 @@ import type { Tape, TapeFrame } from "./format.ts"
 // and Wi-Fi names under any key.
 
 const SERIAL_FIELD = /(^|[_-])(sn|serial([_-]?number)?|ams_id|dev_id)$/i
+
 const PRIVATE_FIELD =
   /^(.*ssid|host(name)?|host_name|access[_-]?(code|token)|password|.*mac([_-]?address)?|dev(ice)?_(product_)?name|wifi_name|user[_-]?id|uid|.*url)$/i
 

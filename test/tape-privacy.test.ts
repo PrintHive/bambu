@@ -12,14 +12,17 @@ import { SCRUBBED_JOB, SCRUBBED_PAYLOAD, SCRUBBED_SERIAL, SCRUBBED_URL } from ".
 const test: (name: string, run: () => void) => void = process.versions.bun ? (await import("node:test")).test : (await import("vitest")).test
 
 const SERIAL_FIELD = /(^|[_-])(sn|serial([_-]?number)?|ams_id|dev_id)$/i
+
 const PRIVATE_FIELD =
   /^(.*ssid|host(name)?|host_name|access[_-]?(code|token)|password|.*mac([_-]?address)?|dev(ice)?_(product_)?name|wifi_name|user[_-]?id|uid|.*url)$/i
+
 const TASK_FIELD = /^(task_id|subtask_id|project_id|profile_id|job_id|design_id)$/
 const VERSION_FIELD = /(^|_)(ver|version|firmware)$/i
 const SERIAL_TEXT = /\b(?=[0-9A-Z]*[A-Z])[0-9][0-9A-Z]{14,15}\b/g
 const DOTTED_QUAD = /(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.])/g
 const MAC = /\b[\da-f]{2}(?:[:-][\da-f]{2}){5}\b/i
 const URL_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi
+
 /** Any run with `::`, or eight hex groups, is an IPv6 literal. */
 const IPV6 = /(?<![\w:.])\[?(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?)/gi
 
