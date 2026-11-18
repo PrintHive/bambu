@@ -119,6 +119,7 @@ export const fieldTable = {
     })
   },
   hardware: {
+    capabilities: field("print.fun", Schema.String),
     modules: collection("info.module", ["name"], {
       name: field("name", Schema.String),
       serial: field("sn", Schema.String),

@@ -11,3 +11,7 @@ export type { Serial, SequenceId, AccessCode } from "./wire/ids.ts"
 export type { ModelId, ModelCode } from "@printhive/bambu-models"
 
 export * as Reading from "./state/reading.ts"
+
+export * as Lifecycle from "./state/lifecycle.ts"
+
+export type { LifecycleEvent } from "./state/lifecycle.ts"
