@@ -22,3 +22,9 @@ assert.equal(features.vortek.source, "inferred")
 const { describe, profiles } = await import("../dist/emulator/index.js")
 
 assert.ok(describe(profiles.P1S).some((line) => line.startsWith("pause reply VERIFIED")))
+
+const { open, replay, SessionStatus } = await import("../dist/client/index.js")
+
+assert.ok(open instanceof Function && replay instanceof Function)
+
+assert.ok(SessionStatus.$is("Ready")(SessionStatus.Ready()))
