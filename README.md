@@ -18,6 +18,11 @@ bun run check
 bun run build
 ```
 
+Tests that open sockets run on `TestClock` from `effect/testing`: every timer in
+the session, the emulator and `@printhive/mqtt` runs on Effect's `Clock`, so no
+test sleeps for protocol time. `test/support/scenario.ts` advances the clock in
+steps and yields real milliseconds between them for socket I/O.
+
 ### Tapes
 
 A tape is a captured, scrubbed session with a real printer, stored as JSON Lines in `test/fixtures/tapes/`. Tapes are the truth: `test/tape-replay.test.ts` replays each one through `reduce` with no emulator involved, and checks the state against values read from the capture.
@@ -150,6 +155,58 @@ nothing: v1 targets Developer Mode.
 `@printhive/bambu/provisional` lists the features rule 10 gates: Vortek,
 timelapse storage and X.509-signed commands. They are not commands, and their
 type cannot be `Verified`.
+
+## Sessions
+
+`@printhive/bambu/client` opens one connection epoch to a printer as a
+`PrinterSession`:
+
+```ts
+import { Effect, Redacted, Stream } from "effect"
+import { open } from "@printhive/bambu/client"
+import { Command } from "@printhive/bambu/protocol"
+
+const program = Effect.gen(function* () {
+  const session = yield* open({
+    host: "192.0.2.10",
+    serial: "01PMOCK00000001",
+    accessCode: Redacted.make("FAKE0000"),
+    tls: { rejectUnauthorized: false },
+    access: "observe"
+  })
+
+  yield* session.send(Command.PushAll())
+  yield* Stream.runForEach(session.changes, (change) => Effect.log(change.delta, change.events))
+})
+```
+
+One actor fiber owns the state, the pending commands, the sequence allocator and
+the epoch. The session subscribes, waits 2 seconds, sends `get_version` and then
+`pushall`, and repeats `pushall` on the dialect's cadence. Commands sent before
+then wait. Each epoch is a fresh MQTT client with `reconnect: false` and QoS 0
+requests, so nothing crosses an epoch. `status` ends with `EpochEnded`; opening
+another epoch is the caller's decision, and `previous` carries the state and
+lifecycle over.
+
+- `send` fails with `NotSent` or `SessionClosed` only when no byte was written.
+  Every outcome means the bytes left: `Acknowledged`, `Rejected`, or
+  `Ambiguous` with `timeout`, `connection-lost` or `publish-hook-failed`. The
+  session never resends.
+- `PublishHooks` carry the two ADR-0056 phases. The session runs
+  `beforePublish`, the write and `onPublished` as one uninterruptible step, with
+  nothing in between. A refused `beforePublish` is `NotSent`. A caller
+  interrupted before the session takes its command sends nothing; one
+  interrupted later cannot stop the step.
+- A Start Print does not compile without hooks, and an `observe` session can
+  send only `PushAll` and `GetVersion`.
+- `awaitSilence(duration)` completes once nothing has arrived for `duration`
+  while the link was up. Time before the subscription is granted does not count.
+
+`replay(tape, options)` runs a session against a tape's printer side with no
+sockets. Each request must match the tape's next request byte for byte, and the
+tape's reports then arrive, so the handshake, encoding and correlation are
+checked against a real printer's bytes. A request that differs ends the epoch
+and says where.
 
 ## Emulator
 

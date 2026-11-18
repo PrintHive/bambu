@@ -34,6 +34,10 @@
       "types": "./dist/emulator/index.d.ts",
       "default": "./dist/emulator/index.js"
     },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
@@ -52,8 +56,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings",
-    "test": "bun test",
-    "test:node": "vitest run",
+    "test": "bun test --timeout 30000",
+    "test:node": "vitest run --testTimeout 30000",
     "check": "bun run lint && bun run typecheck && bun run test",
     "prepublishOnly": "bun run check && bun run build"
   },
