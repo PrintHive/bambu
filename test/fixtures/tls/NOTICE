@@ -1,0 +1,6 @@
+A self-signed certificate and key for the in-process emulator's loopback TLS
+port in tests. They identify no device and protect nothing: the key is public
+on purpose. CN=printhive-emulator, SAN localhost and 127.0.0.1, valid 100 years.
+
+Regenerate with:
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout key.pem -out cert.pem -days 36500 -subj "/CN=printhive-emulator" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"

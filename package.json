@@ -30,6 +30,10 @@
       "types": "./dist/provisional/index.d.ts",
       "default": "./dist/provisional/index.js"
     },
+    "./emulator": {
+      "types": "./dist/emulator/index.d.ts",
+      "default": "./dist/emulator/index.js"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
@@ -66,6 +70,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "@printhive/bambu-models": "^0.1.1"
+    "@printhive/bambu-models": "^0.1.1",
+    "@printhive/mqtt": "^0.6.0"
   }
 }

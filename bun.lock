@@ -6,6 +6,7 @@
       "name": "@printhive/bambu",
       "dependencies": {
         "@printhive/bambu-models": "^0.1.1",
+        "@printhive/mqtt": "^0.6.0",
       },
       "devDependencies": {
         "@oxlint/plugins": "1.90.0",
@@ -71,6 +72,8 @@
     "@oxlint/plugins": ["@oxlint/plugins@1.90.0", "", {}, "sha512-FT0JJDNbj9oobVWHpAzFckHY/bx1ftPjulBx4UCMXqmDUGqVWOkbKe5bj4zdEL+D5Ud7y/RfioLwSvlHBMjI4w=="],
 
     "@printhive/bambu-models": ["@printhive/bambu-models@0.1.1", "", {}, "sha512-cqVmSR0YxaHUr61L+e4VSJlfnyY6hQsSOr+4bhMT8c+mnNNdSxtdird2boFKb4fnmJu7TOKbMsMhMVywydHzdw=="],
+
+    "@printhive/mqtt": ["@printhive/mqtt@0.6.0", "", { "peerDependencies": { "effect": "^4.0.2" } }, "sha512-wekpF4MLvqhLMAfvcY5Q0YmCMsGUKmUeTCcH5IicAaGwKv+qEG/nIKDLcy0u7LNdgowBhy7eDUriITkdtvrg3A=="],
 
     "@rolldown/binding-android-arm-eabi": ["@rolldown/binding-android-arm-eabi@1.2.15", "", { "os": "android", "cpu": "arm" }, "sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw=="],
 
