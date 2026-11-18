@@ -30,10 +30,6 @@ bun scripts/scrub-tape.ts capture.jsonl test/fixtures/tapes/p1s-01.09.00.00/idle
 
 The scrubber replaces serials with `<prefix>MOCK<counter>` and cloud task, project and profile ids with small counters, consistently across a tape. IPv4 and IPv6 addresses become documentation addresses (RFC 5737, RFC 3849), and URLs become a placeholder. It blanks MAC addresses, Wi-Fi names, hostnames, device and user names, credentials, RFID identifiers and print job names. Version fields keep their versions, and every other wire value is kept. `test/tape-privacy.test.ts` checks every committed tape and fails the build on any identifier left behind. Name a tape after the model, firmware and scenario, never after the printer.
 
-## License
-
-MIT
-
 ## Reduce printer reports
 
 `reduce` folds one inbound JSON report into immutable printer state without
@@ -94,3 +90,67 @@ of `@printhive/bambu-models` has no `printerTypes` entries, so reported model
 codes also use its `modelByCode` lookup. That version lacks the A1 mini `030`
 serial prefix. Such a printer remains unresolved until a known reported code
 arrives. This package does not maintain a second identity table.
+
+`hardware.capabilities` holds the raw `print.fun` mask, a hexadecimal string.
+
+## Job lifecycle
+
+`Lifecycle.observe(previous, state, now)` steps the job lifecycle with a reduced
+report, and only when that report carried `gcode_state`. `Lifecycle.goOffline`
+marks lost observation, which is never evidence of a stop. Every event carries
+the task id reported with it:
+
+- `JobStarted`: an observed change from not printing to printing.
+- `JobAdopted`: the first observation after being offline found a job printing.
+  It is not a start.
+- `JobRecovered`: the first observation after being offline found a job paused.
+- `JobPaused` and `JobResumed`.
+- `JobEnded`: an observed change from printing to `FINISH`, `FAILED` or `IDLE`,
+  including one that happened while offline. A `FINISH` revised to `FAILED` for
+  the same task is ignored.
+
+## Commands
+
+`@printhive/bambu/protocol` holds the command algebra. One table, `protocol`,
+defines every command: its access level, how its reply is matched, its encoder
+and its reply type. `Command`, `ReplyOf` and `ReadOnlyCommand` come from it.
+
+```ts
+import { Command, dialects, encode, sequenceId } from "@printhive/bambu/protocol"
+
+const encoded = encode(Command.Pause(), { dialect: dialects.P1S, sequenceId: sequenceId(2), capabilities: undefined })
+```
+
+- `Stop` has no fields, so a LAN stop never carries `job_id`. An acknowledged
+  stop proves receipt only; a `JobEnded` event proves the stop.
+- `ProjectFile` always sends `sequence_id` `"50000"` and its `task_id` as a
+  string. Its reply is matched by task id. A caller can set neither.
+- `PushAll` is answered by the next full report, which the P1S marks with
+  `msg: 0`. `GetVersion` matches the dialect's reply sequence: an X1C answers
+  with `"2021"`.
+- `ChangeFilament` and `ProjectFile` take `FilamentTarget`s: `AmsSlot`, sent as
+  `ams*4+slot`, or `ExternalSpool` 254 or 255, checked against the model.
+- `SetBedTemperature` sends `set_bed_temp` when bit 39 of `fun` is set, and
+  `M140` otherwise.
+
+Each model has a `Dialect`: its handshake delay, `pushall` cadence, reply
+rules, external spools, mapping format, and whether it accepts each command.
+Every value is a `Fact` with its source. Only a fact read from a committed tape
+is `Verified`; everything else is `Unverified` in the type, and `Fact.label`
+says so. A model the registry adds fails to compile until it has a dialect, and
+a command the protocol adds fails to compile until every dialect declares it.
+
+Outcomes follow ADR-0056. `Acknowledged` and `Rejected` carry the reply.
+`Ambiguous` means the bytes were written and nothing settled them. `NotSent` and
+`SessionClosed` mean no byte was written, so a retry is safe.
+
+`CommandSigner` signs requests before they are written. Its default signs
+nothing: v1 targets Developer Mode.
+
+`@printhive/bambu/provisional` lists the features rule 10 gates: Vortek,
+timelapse storage and X.509-signed commands. They are not commands, and their
+type cannot be `Verified`.
+
+## License
+
+MIT

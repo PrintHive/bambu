@@ -10,3 +10,11 @@ Reading.match(result.state.progress.percent, {
   Unsupported: () => assert.fail("Unsupported progress"),
   Invalid: () => assert.fail("Invalid progress")
 })
+
+const { Command, dialects, encode, sequenceId } = await import("../dist/protocol/index.js")
+const { features } = await import("../dist/provisional/index.js")
+const encoded = encode(Command.Stop(), { dialect: dialects.P1S, sequenceId: sequenceId(1), capabilities: undefined })
+
+assert.deepEqual(encoded.success?.payload, { print: { sequence_id: "1", command: "stop" } })
+
+assert.equal(features.vortek.source, "inferred")
