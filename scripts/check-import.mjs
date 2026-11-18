@@ -18,3 +18,7 @@ const encoded = encode(Command.Stop(), { dialect: dialects.P1S, sequenceId: sequ
 assert.deepEqual(encoded.success?.payload, { print: { sequence_id: "1", command: "stop" } })
 
 assert.equal(features.vortek.source, "inferred")
+
+const { describe, profiles } = await import("../dist/emulator/index.js")
+
+assert.ok(describe(profiles.P1S).some((line) => line.startsWith("pause reply VERIFIED")))

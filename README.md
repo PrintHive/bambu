@@ -151,6 +151,45 @@ nothing: v1 targets Developer Mode.
 timelapse storage and X.509-signed commands. They are not commands, and their
 type cannot be `Verified`.
 
+## Emulator
+
+`@printhive/bambu/emulator` runs a virtual printer in-process, on
+`@printhive/mqtt/server` over a loopback port, with TLS when you pass a key and
+certificate. Its timers run on Effect's `Clock`, so `TestClock` drives report
+cadence and print progress.
+
+```ts
+import { Effect } from "effect"
+import { Fault, make } from "@printhive/bambu/emulator"
+
+const program = Effect.gen(function* () {
+  const printer = yield* make({ model: "P1S", serial: "01PMOCK00000001", accessCode: "FAKE0000", tls: { key, cert } })
+
+  yield* printer.inject(Fault.Silence())
+})
+```
+
+The emulator keeps its own model of each printer and its own fold. It imports
+none of the client's dialects, reducer or encoder: a printer that shares the
+client's assumptions agrees with the client by construction. Each profile is
+data: report cadence, the reply and the effect of each command, and a seed
+state. The P1S seed is the full report and module list from the P1S tape.
+
+Every profile fact carries its source, like the client's dialects. `describe`
+labels each one VERIFIED or UNVERIFIED, every `trace` entry carries the labels
+of the facts behind it, and the emulator logs how many facts are unverified
+when it starts. Only the P1S has verified behaviors, from its tape.
+
+Faults are scripted: `Silence`, `Disconnect` (`end`, `half-close` or
+`destroy`), `Malformed`, `RefuseAuth`, `StallSuback`, `IgnoreStop`,
+`DropReplies` and `RejectNext`. `keepAlive: "ignore"` models a printer that
+never drops a half-open socket.
+
+`score(tape, frames)` measures emulator traffic against a tape on five
+dimensions: key sets, `gcode_state` sequences, ack envelopes, rejects and report
+cadence. `test/emulator.test.ts` replays the P1S tape's requests and checks the
+score.
+
 ## License
 
 MIT
